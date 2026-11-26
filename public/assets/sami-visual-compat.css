@@ -1545,6 +1545,7 @@ nav.sticky.bottom-0.salim-nav-dock,
   .salim-nav-orbit.is-active,
   .salim-nav-sparks.is-active i {
     animation: none !important;
+    -webkit-animation: none !important;
   }
   .salim-nav-traveler,
   .salim-nav-halo,
@@ -1554,20 +1555,7 @@ nav.sticky.bottom-0.salim-nav-dock,
   }
 }
 
-.salim-fx-lite .salim-gold-trail,
-.salim-fx-lite .salim-gold-dust-layer,
-.salim-fx-lite .salim-gold-dust-layer-b,
-.salim-fx-lite .salim-pm-spotlight::after,
-.salim-fx-lite .salim-ch-search-wave,
-.salim-fx-lite .salim-nav-sparks i {
-  animation: none !important;
-}
-
-.salim-fx-lite .salim-nav-sparks {
-  display: none;
-}
-
-.salim-fx-balanced .salim-nav-sparks i:nth-child(n + 4) {
+.salim-fx-balanced .salim-nav-sparks i:nth-child(n + 5) {
   display: none;
 }
 
@@ -1591,11 +1579,138 @@ nav.sticky.bottom-0.salim-nav-dock,
   background: rgba(15, 22, 38, 0.90) !important;
 }
 
-.sami-legacy-android .salim-gold-trail,
-.sami-legacy-android .salim-gold-dust-layer,
-.sami-legacy-android .salim-gold-dust-layer-b {
-  animation: none !important;
+/* ==========================================================================
+   12. CROSS-ANDROID WEBVIEW ANIMATION, TRANSFORM & GPU COMPATIBILITY LAYER
+   Fixes:
+   - Missing .animate-in / .fade-in / .zoom-in / .slide-in-from-* keyframes
+   - Older WebView (Chrome < 104) missing standalone CSS `translate:` / `scale:` / `rotate:`
+   - Older WebView missing `-webkit-animation` / `translate3d` hardware compositing
+   - Missing conic-gradient/mask support on `.salim-nav-orbit`
+   ========================================================================== */
+@-webkit-keyframes samiFadeIn {
+  from { opacity: 0; -webkit-transform: translate3d(0, 6px, 0); transform: translate3d(0, 6px, 0); }
+  to { opacity: 1; -webkit-transform: translate3d(0, 0, 0); transform: translate3d(0, 0, 0); }
 }
+@keyframes samiFadeIn {
+  from { opacity: 0; -webkit-transform: translate3d(0, 6px, 0); transform: translate3d(0, 6px, 0); }
+  to { opacity: 1; -webkit-transform: translate3d(0, 0, 0); transform: translate3d(0, 0, 0); }
+}
+
+@-webkit-keyframes samiZoomIn {
+  from { opacity: 0; -webkit-transform: scale3d(0.95, 0.95, 1); transform: scale3d(0.95, 0.95, 1); }
+  to { opacity: 1; -webkit-transform: scale3d(1, 1, 1); transform: scale3d(1, 1, 1); }
+}
+@keyframes samiZoomIn {
+  from { opacity: 0; -webkit-transform: scale3d(0.95, 0.95, 1); transform: scale3d(0.95, 0.95, 1); }
+  to { opacity: 1; -webkit-transform: scale3d(1, 1, 1); transform: scale3d(1, 1, 1); }
+}
+
+@-webkit-keyframes samiBounceCompat {
+  0%, 100% { -webkit-transform: translate3d(0, -18%, 0); transform: translate3d(0, -18%, 0); }
+  50% { -webkit-transform: translate3d(0, 0, 0); transform: translate3d(0, 0, 0); }
+}
+@keyframes samiBounceCompat {
+  0%, 100% { -webkit-transform: translate3d(0, -18%, 0); transform: translate3d(0, -18%, 0); }
+  50% { -webkit-transform: translate3d(0, 0, 0); transform: translate3d(0, 0, 0); }
+}
+
+@-webkit-keyframes samiSpinCompat {
+  from { -webkit-transform: rotate(0deg); transform: rotate(0deg); }
+  to { -webkit-transform: rotate(360deg); transform: rotate(360deg); }
+}
+@keyframes samiSpinCompat {
+  from { -webkit-transform: rotate(0deg); transform: rotate(0deg); }
+  to { -webkit-transform: rotate(360deg); transform: rotate(360deg); }
+}
+
+@-webkit-keyframes samiPulseCompat {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+@keyframes samiPulseCompat {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.animate-in {
+  -webkit-animation: samiFadeIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: samiFadeIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity, transform;
+}
+
+.animate-in.zoom-in,
+.animate-in.zoom-in-95 {
+  -webkit-animation: samiZoomIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: samiZoomIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-spin {
+  -webkit-animation: samiSpinCompat 1s linear infinite !important;
+  animation: samiSpinCompat 1s linear infinite !important;
+}
+
+.animate-pulse {
+  -webkit-animation: samiPulseCompat 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
+  animation: samiPulseCompat 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
+}
+
+.animate-bounce {
+  -webkit-animation: samiBounceCompat 1s infinite !important;
+  animation: samiBounceCompat 1s infinite !important;
+}
+
+/* Guarantee GPU compositing for interactive cards, nav tabs & buttons on WebView */
+.salim-nav-dock,
+.salim-nav-traveler,
+.salim-nav-icon-wrap,
+.salim-nav-orbit,
+.salim-ch-card,
+.salim-pkg-cta,
+.salim-pm-spotlight,
+.salim-gold-trail {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-transform: translateZ(0);
+}
+
+/* Fallback for older Android WebViews without CSS `translate:`/`scale:` individual properties */
+.sami-no-css-translate .active\:scale-95:active {
+  -webkit-transform: scale3d(0.95, 0.95, 1) !important;
+  transform: scale3d(0.95, 0.95, 1) !important;
+}
+.sami-no-css-translate .active\:scale-\[0\.98\]:active {
+  -webkit-transform: scale3d(0.98, 0.98, 1) !important;
+  transform: scale3d(0.98, 0.98, 1) !important;
+}
+.sami-no-css-translate .hover\:scale-\[1\.01\]:hover {
+  -webkit-transform: scale3d(1.01, 1.01, 1) !important;
+  transform: scale3d(1.01, 1.01, 1) !important;
+}
+.sami-no-css-translate .hover\:scale-105:hover {
+  -webkit-transform: scale3d(1.05, 1.05, 1) !important;
+  transform: scale3d(1.05, 1.05, 1) !important;
+}
+.sami-no-css-translate .scale-105 {
+  -webkit-transform: scale3d(1.05, 1.05, 1) !important;
+  transform: scale3d(1.05, 1.05, 1) !important;
+}
+.sami-no-css-translate .-translate-y-1\/2 {
+  -webkit-transform: translate3d(0, -50%, 0) !important;
+  transform: translate3d(0, -50%, 0) !important;
+}
+.sami-no-css-translate .translate-y-0 {
+  -webkit-transform: translate3d(0, 0, 0) !important;
+  transform: translate3d(0, 0, 0) !important;
+}
+
+/* Mask fallback for `.salim-nav-orbit` on older Chromium WebViews */
+.sami-no-css-mask .salim-nav-orbit {
+  background: transparent !important;
+  border: 1.5px solid rgba(251, 191, 36, 0.48) !important;
+  border-top-color: rgba(254, 240, 138, 0.95) !important;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.35);
+}
+
 
 
 

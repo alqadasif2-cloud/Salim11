@@ -5,8 +5,10 @@ import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.media.MediaRecorder
@@ -16,6 +18,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.util.Base64
 import android.util.Log
+import android.view.View
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
@@ -69,6 +72,8 @@ class MainActivity : ComponentActivity() {
         put("canResume", false)
     }
     private var verifiedUpdateApkFile: File? = null
+
+    private var fcmForegroundReceiver: BroadcastReceiver? = null
 
     private val prefs by lazy {
         getSharedPreferences("salim_native_prefs", Context.MODE_PRIVATE)
@@ -140,6 +145,7 @@ class MainActivity : ComponentActivity() {
         webView = WebView(this).apply {
             setBackgroundColor(Color.parseColor("#050811"))
             overScrollMode = WebView.OVER_SCROLL_NEVER
+            setLayerType(View.LAYER_TYPE_HARDWARE, null)
 
             settings.apply {
                 javaScriptEnabled = true
@@ -305,6 +311,47 @@ class MainActivity : ComponentActivity() {
         webView.loadUrl(initialUrl)
     }
 
+    override fun onResume() {
+        super.onResume()
+        SamiPushStandbyHelper.setAppForeground(this, true)
+        registerForegroundFcmReceiver()
+        SamiPushStandbyHelper.ensureFirebaseStandby(applicationContext)
+    }
+
+    override fun onPause() {
+        SamiPushStandbyHelper.setAppForeground(this, false)
+        unregisterForegroundFcmReceiver()
+        super.onPause()
+    }
+
+    private fun registerForegroundFcmReceiver() {
+        if (fcmForegroundReceiver != null) return
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val payloadJson = intent?.getStringExtra("payloadJson") ?: return
+                if (::webView.isInitialized) {
+                    runOnUiThread {
+                        webView.evaluateJavascript(
+                            "window.dispatchEvent(new CustomEvent('salim_fcm_foreground_message', { detail: $payloadJson }));",
+                            null
+                        )
+                    }
+                }
+            }
+        }
+        fcmForegroundReceiver = receiver
+        val filter = IntentFilter(SamiPushStandbyHelper.ACTION_FCM_FOREGROUND_MESSAGE)
+        ContextCompat.registerReceiver(this, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+    }
+
+    private fun unregisterForegroundFcmReceiver() {
+        val receiver = fcmForegroundReceiver ?: return
+        fcmForegroundReceiver = null
+        try {
+            unregisterReceiver(receiver)
+        } catch (_: Throwable) {}
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -383,13 +430,13 @@ class MainActivity : ComponentActivity() {
                 }
                 JSONObject().apply {
                     put("versionCode", vCode)
-                    put("versionName", pkgInfo.versionName ?: "1.3.1")
+                    put("versionName", pkgInfo.versionName ?: "1.3.2")
                     put("applicationId", packageName)
                     put("isAndroidNative", true)
                     put("sdkInt", Build.VERSION.SDK_INT)
                 }.toString()
             } catch (_: Throwable) {
-                """{"versionCode":15,"versionName":"1.3.1","applicationId":"$packageName","isAndroidNative":true}"""
+                """{"versionCode":16,"versionName":"1.3.2","applicationId":"$packageName","isAndroidNative":true}"""
             }
         }
 
@@ -401,6 +448,10 @@ class MainActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun unregisterFcmToken() {
+            val tok = prefs.getString("fcm_token", "")
+            val uid = prefs.getString("active_user_id", "")
+            val authTok = prefs.getString("active_auth_token", "")
+            SamiPushStandbyHelper.unregisterTokenFromServerInBackground(applicationContext, tok, uid, authTok)
             prefs.edit().remove("fcm_token").apply()
         }
 
@@ -438,6 +489,10 @@ class MainActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun onLogout() {
+            val tok = prefs.getString("fcm_token", "")
+            val uid = prefs.getString("active_user_id", "")
+            val authTok = prefs.getString("active_auth_token", "")
+            SamiPushStandbyHelper.unregisterTokenFromServerInBackground(applicationContext, tok, uid, authTok)
             prefs.edit()
                 .remove("active_user_id")
                 .remove("active_username")
@@ -655,7 +710,10 @@ class MainActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun setRemoteServerUrl(url: String?) {
-            prefs.edit().putString("remote_server_url", url?.trim() ?: "").apply()
+            val clean = SamiPushStandbyHelper.sanitizeServerUrl(url)
+            if (clean.isNotEmpty()) {
+                prefs.edit().putString("remote_server_url", clean).apply()
+            }
         }
 
         @JavascriptInterface

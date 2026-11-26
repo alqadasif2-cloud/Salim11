@@ -129,15 +129,103 @@ function isMainOwnerSalim(user: CurrentUser | null | undefined): boolean {
   return String(user.username || '').trim().toLowerCase() === 'salim';
 }
 
+const DEFAULT_AI_SERVER_BASE = 'https://ais-pre-wrwn7qrad4ng4e3ejalosp-497473975821.europe-west2.run.app';
+
+function isAndroidLocalOrigin(): boolean {
+  try {
+    return (
+      typeof window !== 'undefined' &&
+      (window.location.hostname === 'appassets.androidplatform.net' || window.location.protocol === 'file:')
+    );
+  } catch {
+    return false;
+  }
+}
+
+function sanitizeRemoteBase(raw: string | null | undefined): string {
+  const s = String(raw || '').trim();
+  if (!s || s === 'MY_APP_URL') return '';
+  try {
+    const parsed = new URL(s);
+    if (parsed.protocol !== 'https:') return '';
+    const h = parsed.hostname.toLowerCase();
+    if (
+      !h ||
+      h === 'localhost' ||
+      h === '127.0.0.1' ||
+      h === '0.0.0.0' ||
+      h === 'appassets.androidplatform.net' ||
+      h.startsWith('ais-dev-') ||
+      h.includes('puwra2x2ecorh5lpokb4yk') ||
+      h.endsWith('.usercontent.goog')
+    ) {
+      return '';
+    }
+    return parsed.origin.replace(/\/+$/, '');
+  } catch {
+    return '';
+  }
+}
+
 function getApiBase(): string {
   try {
     const w = window as any;
     if (typeof w.getSamiServerBaseUrl === 'function') {
       const b = String(w.getSamiServerBaseUrl() || '').trim();
-      if (b) return b.replace(/\/+$/, '');
+      const clean = sanitizeRemoteBase(b);
+      if (clean) return clean;
+      if (b && !isAndroidLocalOrigin()) return b.replace(/\/+$/, '');
+    }
+    if (!isAndroidLocalOrigin()) {
+      return '';
+    }
+    const winBase = sanitizeRemoteBase(w.__samiConfiguredServerBase);
+    if (winBase) return winBase;
+    try {
+      const stored = sanitizeRemoteBase(localStorage.getItem('sami_push_server_url'));
+      if (stored) return stored;
+    } catch {}
+    if (w.SamiBridge && typeof w.SamiBridge.getRemoteServerUrl === 'function') {
+      const nativeBase = sanitizeRemoteBase(w.SamiBridge.getRemoteServerUrl());
+      if (nativeBase) return nativeBase;
     }
   } catch {}
-  return '';
+  return isAndroidLocalOrigin() ? DEFAULT_AI_SERVER_BASE : '';
+}
+
+function formatAiNetworkError(err: any, endpointUrl: string): string {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return 'لا يوجد اتصال بالإنترنت على الجهاز حالياً. تحقق من الواي فاي أو بيانات الهاتف ثم أعد المحاولة.';
+  }
+  const name = String(err?.name || '');
+  const rawMsg = String(err?.message || '').trim();
+  const lower = rawMsg.toLowerCase();
+
+  if (name === 'AbortError' || lower.includes('aborted') || lower.includes('timeout')) {
+    return 'انتهت مهلة الاتصال بخادم المساعد الذكي قبل وصول الرد. قد يكون الاتصال بطيئاً أو الطلب طويلاً — اضغط «إعادة المحاولة».';
+  }
+  if (
+    lower === 'failed to fetch' ||
+    lower.includes('failed to fetch') ||
+    lower.includes('networkerror') ||
+    lower.includes('load failed') ||
+    lower.includes('network request failed') ||
+    lower.includes('err_connection') ||
+    lower.includes('err_name_not_resolved')
+  ) {
+    const targetHost = (() => {
+      try {
+        return new URL(endpointUrl, typeof window !== 'undefined' ? window.location.origin : DEFAULT_AI_SERVER_BASE).host;
+      } catch {
+        return 'الخادم البعيد';
+      }
+    })();
+    return `تعذر الوصول إلى خادم المساعد الذكي (${targetHost}). تحقق من اتصال الإنترنت أو استقرار الشبكة أو توقف الخادم مؤقتاً، ثم أعد المحاولة.`;
+  }
+  if (rawMsg) {
+    return rawMsg;
+  }
+  return 'حدث خطأ غير متوقع أثناء الاتصال بالمساعد الذكي.';
 }
 
 function readStoredJwt(): string {
@@ -272,28 +360,93 @@ export function SamiAiAssistantPanel({ currentUser, onNavigate, onToast }: Props
     onToast?.(`تم تصدير ${accounts.length} حسابات إلى ملف CSV.`);
   }, [onToast]);
 
-  const callAiApi = useCallback(async (path: string, options: RequestInit = {}) => {
+  const [checkingConn, setCheckingConn] = useState(false);
+
+  const callAiApi = useCallback(async (path: string, options: RequestInit = {}, timeoutMs = 20000) => {
     const token = currentUser?.token || readStoredJwt();
     const headers: Record<string, string> = {
+      Accept: 'application/json',
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string> | undefined),
     };
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-    const res = await fetch(`${getApiBase()}/api/ai-assistant${path}`, {
-      ...options,
-      headers,
-    });
-    const data = await res.json().catch(() => ({}));
-    if (res.status === 401 || data?.code === 'JWT_REQUIRED') {
-      setNeedsReauth(true);
-      throw new Error(data?.error || 'يرجى تأكيد كلمة مرور المالك لتحديث الجلسة الموقعة.');
+
+    const method = String(options.method || 'GET').toUpperCase();
+    const maxAttempts = method === 'GET' ? 2 : 1;
+
+    let lastErr: any = null;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const base = getApiBase();
+      const targetUrl = `${base}/api/ai-assistant${path}`;
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+
+      try {
+        const res = await fetch(targetUrl, {
+          ...options,
+          headers,
+          cache: 'no-store',
+          signal: ctrl.signal,
+        });
+        clearTimeout(timer);
+
+        const contentType = String(res.headers.get('content-type') || '').toLowerCase();
+        const rawText = await res.text();
+        let data: any = {};
+        if (rawText) {
+          try {
+            data = JSON.parse(rawText);
+          } catch {
+            if (rawText.trim().startsWith('<') || contentType.includes('text/html')) {
+              throw new Error(
+                `الخادم أعاد استجابة غير متوقعة (صفحة HTML بدلاً من JSON، رمز ${res.status}). تأكد من أن عنوان الخادم المعتمد متاح.`
+              );
+            }
+          }
+        }
+
+        if (res.status === 401 || data?.code === 'JWT_REQUIRED') {
+          setNeedsReauth(true);
+          throw new Error(data?.error || 'يرجى تأكيد كلمة مرور المالك لتحديث الجلسة الموقعة.');
+        }
+
+        if ((res.status === 502 || res.status === 503 || res.status === 504) && attempt < maxAttempts) {
+          await new Promise((r) => setTimeout(r, 700));
+          continue;
+        }
+
+        if (!res.ok) {
+          throw new Error(data?.error || `تعذر إكمال الطلب من الخادم (رمز ${res.status}).`);
+        }
+
+        return data;
+      } catch (err: any) {
+        clearTimeout(timer);
+        lastErr = err;
+
+        const isNetworkFailure =
+          err?.name === 'TypeError' ||
+          err?.name === 'AbortError' ||
+          String(err?.message || '').toLowerCase().includes('fetch');
+
+        if (isNetworkFailure && attempt < maxAttempts) {
+          try {
+            const w = window as any;
+            if (typeof w.discoverSamiCloudStateFromFirestore === 'function') {
+              await w.discoverSamiCloudStateFromFirestore();
+            }
+          } catch {}
+          await new Promise((r) => setTimeout(r, 600));
+          continue;
+        }
+
+        throw new Error(formatAiNetworkError(err, targetUrl));
+      }
     }
-    if (!res.ok) {
-      throw new Error(data?.error || `خطأ (${res.status})`);
-    }
-    return data;
+
+    throw new Error(formatAiNetworkError(lastErr, `${getApiBase()}/api/ai-assistant${path}`));
   }, [currentUser?.token]);
 
   const loadState = useCallback(async (silent = false) => {
@@ -306,7 +459,7 @@ export function SamiAiAssistantPanel({ currentUser, onNavigate, onToast }: Props
       setErrorMsg(null);
     }
     try {
-      const data = await callAiApi('/state', { method: 'GET' });
+      const data = await callAiApi('/state', { method: 'GET' }, 15000);
       setThread(data.thread || {});
       setMessages(Array.isArray(data.messages) ? data.messages : []);
       setDrafts(Array.isArray(data.drafts) ? data.drafts : []);
@@ -314,11 +467,35 @@ export function SamiAiAssistantPanel({ currentUser, onNavigate, onToast }: Props
       setAuditLogs(Array.isArray(data.auditLogs) ? data.auditLogs : []);
       setNeedsReauth(false);
     } catch (err: any) {
-      if (!silent) setErrorMsg(err?.message || 'تعذر تحميل المساعد الذكي.');
+      if (!silent) setErrorMsg(formatAiNetworkError(err, `${getApiBase()}/api/ai-assistant/state`));
     } finally {
       if (!silent) setLoading(false);
     }
   }, [allowed, callAiApi]);
+
+  const handleCheckConnection = useCallback(async () => {
+    setCheckingConn(true);
+    const targetUrl = `${getApiBase()}/api/health`;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 10000);
+    try {
+      const res = await fetch(targetUrl, { method: 'GET', cache: 'no-store', signal: ctrl.signal });
+      clearTimeout(timer);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.ok) {
+        setErrorMsg(null);
+        onToast?.('الاتصال بالخادم سليم ونشط — جارٍ تحديث المساعد الذكي...');
+        await loadState(false);
+      } else {
+        setErrorMsg(`الخادم استجاب برمز (${res.status}) أثناء فحص الاتصال (${targetUrl}).`);
+      }
+    } catch (err: any) {
+      clearTimeout(timer);
+      setErrorMsg(formatAiNetworkError(err, targetUrl));
+    } finally {
+      setCheckingConn(false);
+    }
+  }, [loadState, onToast]);
 
   useEffect(() => {
     loadState(false);
@@ -351,12 +528,18 @@ export function SamiAiAssistantPanel({ currentUser, onNavigate, onToast }: Props
     if (!reauthPassword.trim()) return;
     setReauthLoading(true);
     setErrorMsg(null);
+    const targetUrl = `${getApiBase()}/api/auth/login`;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15000);
     try {
-      const res = await fetch(`${getApiBase()}/api/auth/login`, {
+      const res = await fetch(targetUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: 'Salim', password: reauthPassword.trim() }),
+        cache: 'no-store',
+        signal: ctrl.signal,
       });
+      clearTimeout(timer);
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.token) {
         throw new Error(data?.error || 'كلمة المرور غير صحيحة.');
@@ -368,7 +551,8 @@ export function SamiAiAssistantPanel({ currentUser, onNavigate, onToast }: Props
       onToast?.('تم توثيق جلسة المالك Salim بنجاح.');
       await loadState();
     } catch (err: any) {
-      setErrorMsg(err?.message || 'فشل تأكيد الهوية.');
+      clearTimeout(timer);
+      setErrorMsg(formatAiNetworkError(err, targetUrl));
     } finally {
       setReauthLoading(false);
     }
@@ -390,10 +574,14 @@ export function SamiAiAssistantPanel({ currentUser, onNavigate, onToast }: Props
     setMessages((prev) => [...prev, optimisticUserMsg]);
 
     try {
-      const data = await callAiApi('/chat', {
-        method: 'POST',
-        body: JSON.stringify({ message: text }),
-      });
+      const data = await callAiApi(
+        '/chat',
+        {
+          method: 'POST',
+          body: JSON.stringify({ message: text }),
+        },
+        45000
+      );
       await loadState();
       if (data?.assistantMessage?.navigation && onNavigate) {
         const nav = data.assistantMessage.navigation as NavDirective;
@@ -404,7 +592,7 @@ export function SamiAiAssistantPanel({ currentUser, onNavigate, onToast }: Props
     } catch (err: any) {
       setMessages((prev) => prev.filter((m) => m.id !== optimisticUserMsg.id));
       if (customPrompt === undefined) setInputText(text);
-      setErrorMsg(err?.message || 'تعذر إرسال الأمر.');
+      setErrorMsg(formatAiNetworkError(err, `${getApiBase()}/api/ai-assistant/chat`));
     } finally {
       setSending(false);
     }
@@ -659,9 +847,26 @@ export function SamiAiAssistantPanel({ currentUser, onNavigate, onToast }: Props
       )}
 
       {errorMsg && (
-        <div className="rounded-xl bg-red-950/50 border border-red-500/40 px-3.5 py-2.5 text-xs text-red-200 font-semibold flex items-center justify-between gap-2">
-          <span>{errorMsg}</span>
-          <button type="button" onClick={() => setErrorMsg(null)} className="text-red-300 font-black cursor-pointer">✕</button>
+        <div className="rounded-xl bg-red-950/50 border border-red-500/40 px-3.5 py-2.5 text-xs text-red-200 font-semibold flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <span className="leading-relaxed">{errorMsg}</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              disabled={checkingConn}
+              onClick={() => void handleCheckConnection()}
+              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 text-[11px] font-bold cursor-pointer disabled:opacity-50"
+            >
+              {checkingConn ? 'جارٍ الفحص...' : 'فحص الاتصال'}
+            </button>
+            <button
+              type="button"
+              onClick={() => void loadState(false)}
+              className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[11px] font-black cursor-pointer"
+            >
+              إعادة المحاولة
+            </button>
+            <button type="button" onClick={() => setErrorMsg(null)} className="text-red-300 font-black cursor-pointer px-1">✕</button>
+          </div>
         </div>
       )}
 

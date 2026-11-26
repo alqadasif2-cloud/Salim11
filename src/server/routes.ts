@@ -60,6 +60,9 @@ import {
   sendNotificationToUsers,
   dispatchAuthorizedChatPush,
   getWebPushPublicKey,
+  getUserNotificationPrefs,
+  saveUserNotificationPrefs,
+  getPushSystemDiagnostics,
 } from './fcm.ts';
 import {
   inspectApkBuffer,
@@ -152,6 +155,21 @@ function getEffectiveUser(req: Request): AuthUser {
     isGuest: true,
   };
 }
+
+// ============================================================================
+// HEALTH DIAGNOSTIC ROUTE (Used by Android APK & Web Client Connection Check)
+// ============================================================================
+
+apiRouter.get('/health', (_req: Request, res: Response) => {
+  return res.json({
+    ok: true,
+    status: 'online',
+    service: 'salim-api',
+    version: '1.3.2',
+    versionCode: 16,
+    timestamp: Date.now(),
+  });
+});
 
 // ============================================================================
 // AUTHENTICATION ROUTES
@@ -1005,6 +1023,27 @@ apiRouter.post('/fcm/dispatch', async (req: Request, res: Response) => {
   }
 });
 
+apiRouter.get('/fcm/prefs', (req: Request, res: Response) => {
+  const user = getEffectiveUser(req);
+  if (!user || user.isGuest || user.id >= 9_000_000) {
+    return res.status(401).json({ error: 'يرجى تسجيل الدخول' });
+  }
+  return res.json({ success: true, prefs: getUserNotificationPrefs(user.id) });
+});
+
+apiRouter.post('/fcm/prefs', (req: Request, res: Response) => {
+  const user = getEffectiveUser(req);
+  if (!user || user.isGuest || user.id >= 9_000_000) {
+    return res.status(401).json({ error: 'يرجى تسجيل الدخول' });
+  }
+  const prefs = saveUserNotificationPrefs(user.id, req.body || {});
+  return res.json({ success: true, prefs });
+});
+
+apiRouter.get('/fcm/status', (_req: Request, res: Response) => {
+  return res.json({ success: true, ...getPushSystemDiagnostics() });
+});
+
 // ============================================================================
 // APP UPDATES ROUTES
 // ============================================================================
@@ -1314,7 +1353,7 @@ apiRouter.post('/app-updates/publish-firebase', async (req: Request, res: Respon
       deliveryMethod: 'firebase_storage' as const,
       fileSize: actualFileSize || (req.body.fileSize ? Math.floor(Number(req.body.fileSize)) : 28000000),
       fileName: fileName || `Salim-v${vName}.apk`,
-      applicationId: 'com.sami.tradingchallengetracker',
+      applicationId: 'com.salim.tradingchallengetracker',
       sha256: sha,
       signingCertSha256: certSha,
       isMandatory: Boolean(isMandatory),

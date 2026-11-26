@@ -4,8 +4,8 @@ import path from 'path';
 
 export const SAMI_APPLICATION_ID = 'com.salim.tradingchallengetracker';
 export const SAMI_LEGACY_APPLICATION_ID = 'com.sami.tradingchallengetracker';
-export const SAMI_INSTALLED_BASELINE_VERSION_CODE = 15;
-export const SAMI_INSTALLED_BASELINE_VERSION_NAME = '1.3.1';
+export const SAMI_INSTALLED_BASELINE_VERSION_CODE = 16;
+export const SAMI_INSTALLED_BASELINE_VERSION_NAME = '1.3.2';
 
 const SIGNING_CERT_SHA256 = 'A5:72:42:C8:38:22:CE:E1:94:DF:80:BC:87:C5:F0:7C:F4:4B:91:CA:52:99:93:37:A6:BA:5D:87:CD:71:BC:B6';
 const SIGNING_CERT_HEX = 'a57242c83822cee194df80bc87c5f07cf44b91ca52999337a6ba5d87cd71bcb6';

@@ -11,21 +11,67 @@ const isProd = process.env.NODE_ENV === 'production';
 async function startServer() {
   const app = express();
 
-  // CORS for Android APK WebView (appassets.androidplatform.net) & AI Studio origins
+  // CORS for Android APK WebView (appassets.androidplatform.net), Cloud Run & AI Studio origins
+  const configuredAppOrigin = (() => {
+    const raw = (process.env.APP_URL || '').trim();
+    if (!raw || raw === 'MY_APP_URL') return '';
+    try {
+      return new URL(raw).origin.toLowerCase();
+    } catch {
+      return '';
+    }
+  })();
+
+  const isAllowedOrigin = (originHeader: string): boolean => {
+    try {
+      const parsed = new URL(originHeader);
+      const originLower = parsed.origin.toLowerCase();
+      if (configuredAppOrigin && originLower === configuredAppOrigin) return true;
+      const host = parsed.hostname.toLowerCase();
+      if (
+        originLower === 'https://appassets.androidplatform.net' ||
+        originLower === 'capacitor://localhost' ||
+        originLower === 'ionic://localhost'
+      ) {
+        return true;
+      }
+      if (
+        (parsed.protocol === 'http:' || parsed.protocol === 'https:') &&
+        (host === 'localhost' || host === '127.0.0.1')
+      ) {
+        return true;
+      }
+      if (
+        parsed.protocol === 'https:' &&
+        (host.endsWith('.run.app') ||
+          host === 'aistudio.google.com' ||
+          host.endsWith('.aistudio.google.com') ||
+          host.endsWith('.googleusercontent.com') ||
+          host.endsWith('.usercontent.goog') ||
+          host.endsWith('.web.app') ||
+          host.endsWith('.firebaseapp.com'))
+      ) {
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
   app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    if (origin) {
+    const origin = typeof req.headers.origin === 'string' ? req.headers.origin.trim() : '';
+    if (origin && isAllowedOrigin(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Vary', 'Origin');
-    } else {
-      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
     }
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
     res.setHeader(
       'Access-Control-Allow-Headers',
-      'Content-Type, Authorization, x-sami-session, x-upload-id, x-offset, x-total-size, Cache-Control'
+      'Accept, Origin, Content-Type, Authorization, X-Requested-With, x-sami-session, x-upload-id, x-offset, x-total-size, Cache-Control, Pragma'
     );
+    res.setHeader('Access-Control-Max-Age', '86400');
     if (req.method === 'OPTIONS') {
       res.status(204).end();
       return;

@@ -20,7 +20,7 @@ declare global {
   }
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'sami-auth-secret-key-salt-98213';
+const JWT_SECRET = process.env.JWT_SECRET?.trim() || crypto.randomBytes(32).toString('hex');
 
 function base64UrlEncode(str: string): string {
   return Buffer.from(str)

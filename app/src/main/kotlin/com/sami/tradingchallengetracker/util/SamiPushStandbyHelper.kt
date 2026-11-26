@@ -6,8 +6,13 @@ import android.app.NotificationManager
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
+import android.util.Log
+import com.google.firebase.FirebaseApp
+import com.google.firebase.FirebaseOptions
 import com.google.firebase.messaging.FirebaseMessaging
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
@@ -19,9 +24,22 @@ import kotlin.concurrent.thread
 object SamiPushStandbyHelper {
     const val PREFS_NAME = "salim_native_prefs"
     const val CHANNEL_ID = "sami_channel_messages_v2"
-    const val DEFAULT_SERVER_URL = "https://ais-pre-puwra2x2ecorh5lpokb4yk-10636202368.europe-west3.run.app"
+    const val PRIVATE_CHANNEL_ID = "sami_private_messages_v2"
+    const val UPDATES_CHANNEL_ID = "sami_app_updates_v2"
+    const val ACTION_FCM_FOREGROUND_MESSAGE = "com.salim.tradingchallengetracker.FCM_FOREGROUND_MESSAGE"
+    const val DEFAULT_SERVER_URL = "https://ais-pre-wrwn7qrad4ng4e3ejalosp-497473975821.europe-west2.run.app"
+
+    private const val FIREBASE_PROJECT_ID = "gen-lang-client-0469226875"
+    private const val FIREBASE_STORAGE_BUCKET = "gen-lang-client-0469226875.firebasestorage.app"
+    private const val FIREBASE_SENDER_ID = "664521829167"
+    private const val FIREBASE_API_KEY = "AIzaSyBwf9n0PLEcwECAAEhtx4Q4yD_IBXh3NW4"
+    private const val FIREBASE_FALLBACK_APP_ID = "1:664521829167:web:81dbc6766ec8c3f3d04fda"
 
     fun ensureNotificationChannel(context: Context) {
+        ensureNotificationChannels(context)
+    }
+
+    fun ensureNotificationChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             try {
                 val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -30,12 +48,13 @@ object SamiPushStandbyHelper {
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .setUsage(AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT)
                     .build()
-                val channel = NotificationChannel(
+
+                val channelMsgs = NotificationChannel(
                     CHANNEL_ID,
-                    "رسائل وتنبيهات سالم",
+                    "رسائل القنوات والتنبيهات",
                     NotificationManager.IMPORTANCE_HIGH
                 ).apply {
-                    description = "إشعارات الدردشة والتوصيات وتحديثات منصة Salim"
+                    description = "إشعارات القنوات والتوصيات الفورية في منصة Salim"
                     enableVibration(true)
                     vibrationPattern = longArrayOf(0, 200, 100, 200)
                     enableLights(true)
@@ -43,8 +62,71 @@ object SamiPushStandbyHelper {
                     lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                     setSound(soundUri, audioAttrs)
                 }
-                manager.createNotificationChannel(channel)
+
+                val privateMsgs = NotificationChannel(
+                    PRIVATE_CHANNEL_ID,
+                    "المحادثات الخاصة",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "إشعارات الرسائل الخاصة المباشرة مع القائد والمشرفين"
+                    enableVibration(true)
+                    vibrationPattern = longArrayOf(0, 220, 110, 220)
+                    enableLights(true)
+                    setShowBadge(true)
+                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                    setSound(soundUri, audioAttrs)
+                }
+
+                val appUpdates = NotificationChannel(
+                    UPDATES_CHANNEL_ID,
+                    "تحديثات التطبيق",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "تنبيهات توفر إصدارات وتحديثات تطبيق Salim"
+                    enableVibration(true)
+                    enableLights(true)
+                    setShowBadge(true)
+                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                    setSound(soundUri, audioAttrs)
+                }
+
+                manager.createNotificationChannel(channelMsgs)
+                manager.createNotificationChannel(privateMsgs)
+                manager.createNotificationChannel(appUpdates)
             } catch (_: Throwable) {}
+        }
+    }
+
+    fun resolveChannelId(chatType: String?, messageType: String?): String {
+        if (messageType == "app_update") return UPDATES_CHANNEL_ID
+        if (chatType == "private") return PRIVATE_CHANNEL_ID
+        return CHANNEL_ID
+    }
+
+    fun sanitizeServerUrl(rawUrl: String?): String {
+        val trimmed = rawUrl?.trim().orEmpty()
+        if (trimmed.isEmpty() || trimmed == "MY_APP_URL") return ""
+        return try {
+            val uri = Uri.parse(trimmed)
+            val scheme = uri.scheme?.lowercase() ?: ""
+            val host = uri.host?.lowercase() ?: ""
+            if (
+                scheme != "https" ||
+                host.isEmpty() ||
+                host == "localhost" ||
+                host == "127.0.0.1" ||
+                host == "0.0.0.0" ||
+                host == "appassets.androidplatform.net" ||
+                host.startsWith("ais-dev-") ||
+                host.contains("puwra2x2ecorh5lpokb4yk") ||
+                host.endsWith(".usercontent.goog")
+            ) {
+                ""
+            } else {
+                trimmed.trimEnd('/')
+            }
+        } catch (_: Throwable) {
+            ""
         }
     }
 
@@ -60,11 +142,105 @@ object SamiPushStandbyHelper {
     fun getServerBase(context: Context): String {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val saved = prefs.getString("remote_server_url", "")?.trim() ?: ""
-        return if (saved.startsWith("https://")) saved.trimEnd('/') else DEFAULT_SERVER_URL
+        val clean = sanitizeServerUrl(saved)
+        if (clean.isNotEmpty()) return clean
+        if (saved.isNotEmpty()) {
+            prefs.edit().putString("remote_server_url", DEFAULT_SERVER_URL).apply()
+        }
+        return DEFAULT_SERVER_URL
+    }
+
+    fun setAppForeground(context: Context, isForeground: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("is_app_foreground", isForeground)
+            .putLong("foreground_updated_at", System.currentTimeMillis())
+            .apply()
+    }
+
+    fun isAppForeground(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean("is_app_foreground", false)
+    }
+
+    fun isSameChatCurrentlyActive(
+        context: Context,
+        chatType: String,
+        channelId: String,
+        partnerId: String
+    ): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val activeType = prefs.getString("active_chat_type", "") ?: ""
+        if (chatType == "channel" && activeType == "channel") {
+            val activeChannel = prefs.getString("active_channel_id", "") ?: ""
+            return channelId.isNotBlank() && activeChannel == channelId
+        }
+        if (chatType == "private" && activeType == "private") {
+            val activePartner = prefs.getString("active_partner_id", "") ?: ""
+            return partnerId.isNotBlank() && activePartner == partnerId
+        }
+        return false
+    }
+
+    @Synchronized
+    fun markMessageHandledIfNew(context: Context, messageId: String): Boolean {
+        if (messageId.isBlank()) return true
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val raw = prefs.getString("recent_handled_msg_ids", "[]") ?: "[]"
+        val arr = try {
+            JSONArray(raw)
+        } catch (_: Throwable) {
+            JSONArray()
+        }
+        val list = ArrayList<String>()
+        for (i in 0 until arr.length()) {
+            val item = arr.optString(i, "")
+            if (item.isNotBlank()) list.add(item)
+        }
+        if (list.contains(messageId)) {
+            return false
+        }
+        list.add(messageId)
+        while (list.size > 60) {
+            list.removeAt(0)
+        }
+        val next = JSONArray()
+        for (item in list) next.put(item)
+        prefs.edit().putString("recent_handled_msg_ids", next.toString()).apply()
+        return true
+    }
+
+    fun ensureFirebaseInitialized(context: Context): Boolean {
+        return try {
+            if (FirebaseApp.getApps(context).isNotEmpty()) {
+                true
+            } else {
+                val defaultApp = FirebaseApp.initializeApp(context)
+                if (defaultApp != null) {
+                    true
+                } else {
+                    val resId = context.resources.getIdentifier("google_app_id", "string", context.packageName)
+                    val appId = if (resId != 0) context.getString(resId) else FIREBASE_FALLBACK_APP_ID
+                    val opts = FirebaseOptions.Builder()
+                        .setProjectId(FIREBASE_PROJECT_ID)
+                        .setStorageBucket(FIREBASE_STORAGE_BUCKET)
+                        .setGcmSenderId(FIREBASE_SENDER_ID)
+                        .setApiKey(FIREBASE_API_KEY)
+                        .setApplicationId(appId)
+                        .build()
+                    FirebaseApp.initializeApp(context, opts)
+                    true
+                }
+            }
+        } catch (t: Throwable) {
+            Log.w("SamiPushStandby", "Firebase init note: ${t.message}")
+            false
+        }
     }
 
     fun ensureFirebaseStandby(context: Context, onTokenReady: ((String) -> Unit)? = null) {
-        ensureNotificationChannel(context)
+        ensureNotificationChannels(context)
+        if (!ensureFirebaseInitialized(context.applicationContext)) return
         try {
             FirebaseMessaging.getInstance().isAutoInitEnabled = true
             FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
@@ -124,6 +300,55 @@ object SamiPushStandbyHelper {
                     }
                 }
 
+                OutputStreamWriter(conn.outputStream, Charsets.UTF_8).use { writer ->
+                    writer.write(bodyJson)
+                    writer.flush()
+                }
+                conn.responseCode
+                conn.disconnect()
+            } catch (_: Throwable) {}
+        }
+    }
+
+    fun unregisterTokenFromServerInBackground(
+        context: Context,
+        rawToken: String?,
+        userIdOverride: String? = null,
+        authTokenOverride: String? = null
+    ) {
+        thread(isDaemon = true) {
+            try {
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val userIdStr = (userIdOverride ?: prefs.getString("active_user_id", "") ?: "").trim()
+                val userId = userIdStr.toLongOrNull() ?: 0L
+                if (userId <= 0L) return@thread
+
+                val authToken = (authTokenOverride ?: prefs.getString("active_auth_token", "") ?: "").trim()
+                val deviceId = getOrCreateDeviceId(context)
+                val serverBase = getServerBase(context)
+                val endpoint = "$serverBase/api/fcm/unregister"
+
+                val sessionJson = JSONObject().apply {
+                    put("id", userId)
+                    put("isGuest", false)
+                }.toString()
+
+                val bodyJson = JSONObject().apply {
+                    if (!rawToken.isNullOrBlank()) put("token", rawToken.trim())
+                    put("deviceId", deviceId)
+                }.toString()
+
+                val conn = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 10000
+                    readTimeout = 10000
+                    doOutput = true
+                    setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                    setRequestProperty("x-sami-session", URLEncoder.encode(sessionJson, "UTF-8"))
+                    if (authToken.isNotBlank()) {
+                        setRequestProperty("Authorization", "Bearer $authToken")
+                    }
+                }
                 OutputStreamWriter(conn.outputStream, Charsets.UTF_8).use { writer ->
                     writer.write(bodyJson)
                     writer.flush()

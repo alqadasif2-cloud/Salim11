@@ -18,15 +18,15 @@
    * 1. ADAPTIVE DEVICE PERFORMANCE TIER
    * ------------------------------------------------------------------------ */
   function computePerfTier() {
-    var isLegacy = Boolean(window.__samiIsLegacyAndroid) || docEl.classList.contains('sami-legacy-android');
     var prefersReduced = Boolean(reducedMotionQuery && reducedMotionQuery.matches);
+    if (prefersReduced) {
+      return 'lite';
+    }
+    var isLegacy = Boolean(window.__samiIsLegacyAndroid) || docEl.classList.contains('sami-legacy-android');
     var cores = Number(navigator.hardwareConcurrency) || 4;
     var mem = Number(navigator.deviceMemory) || 4;
 
-    if (isLegacy || prefersReduced || cores <= 2 || mem <= 2) {
-      return 'lite';
-    }
-    if (cores <= 6 || mem <= 4 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent || '')) {
+    if (isLegacy || cores <= 6 || mem <= 4 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent || '')) {
       return 'balanced';
     }
     return 'ultra';
@@ -171,34 +171,82 @@
     }
   }
 
-  document.addEventListener(
-    'pointerdown',
-    function (ev) {
-      var target = ev.target;
-      if (!target || typeof target.closest !== 'function') return;
-      var btn = target.closest('.salim-pkg-cta');
-      if (btn) triggerCtaPress(btn);
-    },
-    { passive: true, capture: true }
-  );
+  if (window.PointerEvent) {
+    document.addEventListener(
+      'pointerdown',
+      function (ev) {
+        var target = ev.target;
+        if (!target || typeof target.closest !== 'function') return;
+        var btn = target.closest('.salim-pkg-cta');
+        if (btn) triggerCtaPress(btn);
+      },
+      { passive: true, capture: true }
+    );
 
-  document.addEventListener(
-    'pointerup',
-    function (ev) {
-      var target = ev.target;
-      var btn = target && typeof target.closest === 'function' ? target.closest('.salim-pkg-cta') : null;
-      releaseCtaPress(btn, false);
-    },
-    { passive: true, capture: true }
-  );
+    document.addEventListener(
+      'pointerup',
+      function (ev) {
+        var target = ev.target;
+        var btn = target && typeof target.closest === 'function' ? target.closest('.salim-pkg-cta') : null;
+        releaseCtaPress(btn, false);
+      },
+      { passive: true, capture: true }
+    );
 
-  document.addEventListener(
-    'pointercancel',
-    function () {
-      releaseCtaPress(null, true);
-    },
-    { passive: true, capture: true }
-  );
+    document.addEventListener(
+      'pointercancel',
+      function () {
+        releaseCtaPress(null, true);
+      },
+      { passive: true, capture: true }
+    );
+  } else {
+    document.addEventListener(
+      'touchstart',
+      function (ev) {
+        var target = ev.target;
+        if (!target || typeof target.closest !== 'function') return;
+        var btn = target.closest('.salim-pkg-cta');
+        if (btn) triggerCtaPress(btn);
+      },
+      { passive: true, capture: true }
+    );
+    document.addEventListener(
+      'touchend',
+      function (ev) {
+        var target = ev.target;
+        var btn = target && typeof target.closest === 'function' ? target.closest('.salim-pkg-cta') : null;
+        releaseCtaPress(btn, false);
+      },
+      { passive: true, capture: true }
+    );
+    document.addEventListener(
+      'touchcancel',
+      function () {
+        releaseCtaPress(null, true);
+      },
+      { passive: true, capture: true }
+    );
+    document.addEventListener(
+      'mousedown',
+      function (ev) {
+        var target = ev.target;
+        if (!target || typeof target.closest !== 'function') return;
+        var btn = target.closest('.salim-pkg-cta');
+        if (btn) triggerCtaPress(btn);
+      },
+      true
+    );
+    document.addEventListener(
+      'mouseup',
+      function (ev) {
+        var target = ev.target;
+        var btn = target && typeof target.closest === 'function' ? target.closest('.salim-pkg-cta') : null;
+        releaseCtaPress(btn, false);
+      },
+      true
+    );
+  }
 
   /* ------------------------------------------------------------------------
    * 3. ELECTRIC GOLDEN ARCS, FLASHES & SPARKS ENGINE (VISIBLE CARDS ONLY)
@@ -838,7 +886,7 @@
       return;
     }
 
-    if (!cardObserver) {
+    if (typeof IntersectionObserver === 'function' && !cardObserver) {
       cardObserver = new IntersectionObserver(
         function (entries) {
           for (var i = 0; i < entries.length; i++) {
@@ -857,7 +905,7 @@
             }
           }
         },
-        { threshold: 0.15 }
+        { threshold: 0.1 }
       );
     }
 
@@ -871,9 +919,13 @@
     var cards = grid.querySelectorAll('.salim-ch-card[data-salim-ch-id]');
     for (var i = 0; i < cards.length; i++) {
       var card = cards[i];
-      if (!observedCards || !observedCards.has(card)) {
-        if (observedCards) observedCards.add(card);
-        cardObserver.observe(card);
+      if (cardObserver) {
+        if (!observedCards || !observedCards.has(card)) {
+          if (observedCards) observedCards.add(card);
+          cardObserver.observe(card);
+        }
+      } else {
+        visibleCards.add(card);
       }
     }
 

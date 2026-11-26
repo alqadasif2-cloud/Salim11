@@ -5780,8 +5780,9 @@ if (typeof window !== "undefined" && window.Storage) {
   }
 }
 var SAMI_EXPECTED_APP_ID = "com.sami.tradingchallengetracker";
-var SAMI_FALLBACK_VERSION_CODE = 15;
-var SAMI_FALLBACK_VERSION_NAME2 = "1.3.1";
+var SAMI_FALLBACK_VERSION_CODE = 16;
+var SAMI_FALLBACK_VERSION_NAME2 = "1.3.2";
+var DEFAULT_SAMI_SERVER_URL = "https://ais-pre-wrwn7qrad4ng4e3ejalosp-497473975821.europe-west2.run.app";
 var SHARED_FIRESTORE_LATEST_DOC_URL2 = "https://firestore.googleapis.com/v1/projects/gen-lang-client-0469226875/databases/ai-studio-salimtradingchal-50c5f03a-26a5-4ffd-ab5f-fd003f2fd93b/documents/app_updates/latest";
 function isAndroidLocalAssetOrigin() {
   try {
@@ -5797,7 +5798,7 @@ function sanitizeProductionServerUrl2(rawUrl) {
     const parsed = new URL(trimmed);
     if (parsed.protocol !== "https:") return "";
     const host = parsed.hostname.toLowerCase();
-    if (!host || host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0" || host === "appassets.androidplatform.net") {
+    if (!host || host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0" || host === "appassets.androidplatform.net" || host.startsWith("ais-dev-") || host.includes("puwra2x2ecorh5lpokb4yk") || host.endsWith(".usercontent.goog")) {
       return "";
     }
     return parsed.origin.replace(/\/+$/, "");
@@ -5843,9 +5844,20 @@ function getSamiServerBaseUrl() {
         localStorage.removeItem("sami_push_server_url");
       }
     }
-    return "";
+    if (typeof window !== "undefined") {
+      const w = window;
+      if (w.SamiBridge && typeof w.SamiBridge.getRemoteServerUrl === "function") {
+        const nativeUrl = sanitizeProductionServerUrl2(w.SamiBridge.getRemoteServerUrl());
+        if (nativeUrl) {
+          persistProductionServerUrlLocally(nativeUrl);
+          return nativeUrl;
+        }
+      }
+    }
+    persistProductionServerUrlLocally(DEFAULT_SAMI_SERVER_URL);
+    return DEFAULT_SAMI_SERVER_URL;
   } catch {
-    return "";
+    return DEFAULT_SAMI_SERVER_URL;
   }
 }
 async function discoverCloudStateFromFirestore(parentSignal) {
@@ -7008,6 +7020,8 @@ if (typeof window !== "undefined") {
   w.shouldShowSamiCloudUpdate = shouldShowCloudAppUpdate;
   w.getInstalledSamiAppInfo = getInstalledSamiAppInfo;
   w.getSamiServerBaseUrl = getSamiServerBaseUrl;
+  w.DEFAULT_SAMI_SERVER_URL = DEFAULT_SAMI_SERVER_URL;
+  w.discoverSamiCloudStateFromFirestore = discoverCloudStateFromFirestore;
   w.SamiChannelMembersModal = SamiChannelMembersModal;
   w.SamiEmojiBar = SamiEmojiBar;
   w.SamiMessageReactions = SamiMessageReactions;

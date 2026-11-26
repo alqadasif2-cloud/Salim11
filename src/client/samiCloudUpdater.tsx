@@ -97,8 +97,9 @@ if (typeof window !== 'undefined' && window.Storage) {
 
 export const SAMI_EXPECTED_APP_ID = 'com.salim.tradingchallengetracker';
 export const SAMI_LEGACY_APP_ID = 'com.sami.tradingchallengetracker';
-export const SAMI_FALLBACK_VERSION_CODE = 15;
-export const SAMI_FALLBACK_VERSION_NAME = '1.3.1';
+export const SAMI_FALLBACK_VERSION_CODE = 16;
+export const SAMI_FALLBACK_VERSION_NAME = '1.3.2';
+export const DEFAULT_SAMI_SERVER_URL = 'https://ais-pre-wrwn7qrad4ng4e3ejalosp-497473975821.europe-west2.run.app';
 
 export const SHARED_FIRESTORE_LATEST_DOC_URL =
   'https://firestore.googleapis.com/v1/projects/gen-lang-client-0469226875/databases/ai-studio-salimtradingchal-50c5f03a-26a5-4ffd-ab5f-fd003f2fd93b/documents/app_updates/latest';
@@ -212,7 +213,7 @@ export function sanitizeProductionServerUrl(rawUrl: string | undefined | null): 
       host === '0.0.0.0' ||
       host === 'appassets.androidplatform.net' ||
       host.startsWith('ais-dev-') ||
-      host.startsWith('ais-pre-') ||
+      host.includes('puwra2x2ecorh5lpokb4yk') ||
       host.endsWith('.usercontent.goog')
     ) {
       return '';
@@ -259,13 +260,24 @@ export function getSamiServerBaseUrl(): string {
         if (cleanStored) {
           return cleanStored;
         }
-        // Purge stale preview (`ais-pre-*` / `ais-dev-*`) or `localhost` URLs immediately
+        // Purge stale dev/localhost/old URLs immediately
         localStorage.removeItem('sami_push_server_url');
       }
     }
-    return '';
+    if (typeof window !== 'undefined') {
+      const w = window as any;
+      if (w.SamiBridge && typeof w.SamiBridge.getRemoteServerUrl === 'function') {
+        const nativeUrl = sanitizeProductionServerUrl(w.SamiBridge.getRemoteServerUrl());
+        if (nativeUrl) {
+          persistProductionServerUrlLocally(nativeUrl);
+          return nativeUrl;
+        }
+      }
+    }
+    persistProductionServerUrlLocally(DEFAULT_SAMI_SERVER_URL);
+    return DEFAULT_SAMI_SERVER_URL;
   } catch {
-    return '';
+    return DEFAULT_SAMI_SERVER_URL;
   }
 }
 
@@ -1748,6 +1760,8 @@ if (typeof window !== 'undefined') {
   w.shouldShowSamiCloudUpdate = shouldShowCloudAppUpdate;
   w.getInstalledSamiAppInfo = getInstalledSamiAppInfo;
   w.getSamiServerBaseUrl = getSamiServerBaseUrl;
+  w.DEFAULT_SAMI_SERVER_URL = DEFAULT_SAMI_SERVER_URL;
+  w.discoverSamiCloudStateFromFirestore = discoverCloudStateFromFirestore;
   w.SamiChannelMembersModal = SamiChannelMembersModal;
   w.SamiEmojiBar = SamiEmojiBar;
   w.SamiMessageReactions = SamiMessageReactions;
