@@ -496,157 +496,257 @@ nav,
 /* ==========================================================================
    11. ROYAL MIDNIGHT & METALLIC GOLD CHANNELS UI SYSTEM
    ========================================================================== */
-@keyframes salimCardReveal {
+@-webkit-keyframes salimCardReveal {
   0% {
     opacity: 0;
-    transform: translate3d(0, 12px, 0) scale(0.985);
+    -webkit-transform: translate3d(0, 12px, 0) scale3d(0.985, 0.985, 1);
+    transform: translate3d(0, 12px, 0) scale3d(0.985, 0.985, 1);
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    -webkit-transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+  }
+}
+@keyframes salimCardReveal {
+  0% {
+    opacity: 0;
+    -webkit-transform: translate3d(0, 12px, 0) scale3d(0.985, 0.985, 1);
+    transform: translate3d(0, 12px, 0) scale3d(0.985, 0.985, 1);
+  }
+  100% {
+    opacity: 1;
+    -webkit-transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
   }
 }
 
-@keyframes salimDustFloat {
+@-webkit-keyframes salimDustFloat {
   0%, 100% {
+    -webkit-transform: translate3d(0, 0, 0);
     transform: translate3d(0, 0, 0);
     opacity: 0.52;
   }
   50% {
+    -webkit-transform: translate3d(-8px, -14px, 0);
+    transform: translate3d(-8px, -14px, 0);
+    opacity: 0.92;
+  }
+}
+@keyframes salimDustFloat {
+  0%, 100% {
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+    opacity: 0.52;
+  }
+  50% {
+    -webkit-transform: translate3d(-8px, -14px, 0);
     transform: translate3d(-8px, -14px, 0);
     opacity: 0.92;
   }
 }
 
-@keyframes salimTrailWave {
+@-webkit-keyframes salimTrailWave {
   0%, 100% {
-    transform: translate3d(0, 0, 0) rotate(-24deg) scale(1);
+    -webkit-transform: translate3d(0, 0, 0) rotate(-24deg) scale3d(1, 1, 1);
+    transform: translate3d(0, 0, 0) rotate(-24deg) scale3d(1, 1, 1);
     opacity: 0.56;
   }
   50% {
-    transform: translate3d(10px, -8px, 0) rotate(-21deg) scale(1.04);
+    -webkit-transform: translate3d(10px, -8px, 0) rotate(-21deg) scale3d(1.04, 1.04, 1);
+    transform: translate3d(10px, -8px, 0) rotate(-21deg) scale3d(1.04, 1.04, 1);
+    opacity: 0.78;
+  }
+}
+@keyframes salimTrailWave {
+  0%, 100% {
+    -webkit-transform: translate3d(0, 0, 0) rotate(-24deg) scale3d(1, 1, 1);
+    transform: translate3d(0, 0, 0) rotate(-24deg) scale3d(1, 1, 1);
+    opacity: 0.56;
+  }
+  50% {
+    -webkit-transform: translate3d(10px, -8px, 0) rotate(-21deg) scale3d(1.04, 1.04, 1);
+    transform: translate3d(10px, -8px, 0) rotate(-21deg) scale3d(1.04, 1.04, 1);
     opacity: 0.78;
   }
 }
 
+@-webkit-keyframes salimCtaGoldenGlow {
+  0%, 100% { opacity: 0.36; }
+  50% { opacity: 0.88; }
+}
 @keyframes salimCtaGoldenGlow {
-  0%, 100% {
-    opacity: 0.36;
-  }
-  50% {
-    opacity: 0.88;
-  }
+  0%, 100% { opacity: 0.36; }
+  50% { opacity: 0.88; }
 }
 
-@keyframes salimCtaLightBeam {
+@-webkit-keyframes salimCtaLightBeam {
   0% {
+    -webkit-transform: translate3d(105%, 0, 0);
     transform: translate3d(105%, 0, 0);
     opacity: 0;
   }
-  8% {
-    opacity: 0.96;
-  }
-  48% {
-    opacity: 0.96;
-  }
-  58% {
+  8% { opacity: 0.96; }
+  48% { opacity: 0.96; }
+  58%, 100% {
+    -webkit-transform: translate3d(-105%, 0, 0);
     transform: translate3d(-105%, 0, 0);
     opacity: 0;
   }
-  100% {
+}
+@keyframes salimCtaLightBeam {
+  0% {
+    -webkit-transform: translate3d(105%, 0, 0);
+    transform: translate3d(105%, 0, 0);
+    opacity: 0;
+  }
+  8% { opacity: 0.96; }
+  48% { opacity: 0.96; }
+  58%, 100% {
+    -webkit-transform: translate3d(-105%, 0, 0);
     transform: translate3d(-105%, 0, 0);
     opacity: 0;
   }
 }
 
-@keyframes salimSearchSheenSweep {
+@-webkit-keyframes salimSearchSheenSweep {
   0% {
+    -webkit-transform: translate3d(135%, 0, 0) skewX(-18deg);
     transform: translate3d(135%, 0, 0) skewX(-18deg);
     opacity: 0;
   }
-  18% {
-    opacity: 0.55;
-  }
-  55% {
-    opacity: 0.45;
-  }
+  18% { opacity: 0.55; }
+  55% { opacity: 0.45; }
   78%, 100% {
+    -webkit-transform: translate3d(-145%, 0, 0) skewX(-18deg);
+    transform: translate3d(-145%, 0, 0) skewX(-18deg);
+    opacity: 0;
+  }
+}
+@keyframes salimSearchSheenSweep {
+  0% {
+    -webkit-transform: translate3d(135%, 0, 0) skewX(-18deg);
+    transform: translate3d(135%, 0, 0) skewX(-18deg);
+    opacity: 0;
+  }
+  18% { opacity: 0.55; }
+  55% { opacity: 0.45; }
+  78%, 100% {
+    -webkit-transform: translate3d(-145%, 0, 0) skewX(-18deg);
     transform: translate3d(-145%, 0, 0) skewX(-18deg);
     opacity: 0;
   }
 }
 
-@keyframes salimSearchWaveRipple {
+@-webkit-keyframes salimSearchWaveRipple {
   0% {
+    -webkit-transform: translate3d(42%, 0, 0) scale3d(0.45, 0.85, 1);
     transform: translate3d(42%, 0, 0) scale3d(0.45, 0.85, 1);
     opacity: 0;
   }
-  20% {
-    opacity: 0.52;
-  }
+  20% { opacity: 0.52; }
   58% {
+    -webkit-transform: translate3d(-12%, 0, 0) scale3d(1.18, 1.15, 1);
     transform: translate3d(-12%, 0, 0) scale3d(1.18, 1.15, 1);
     opacity: 0.34;
   }
   84%, 100% {
+    -webkit-transform: translate3d(-58%, 0, 0) scale3d(1.45, 1.25, 1);
+    transform: translate3d(-58%, 0, 0) scale3d(1.45, 1.25, 1);
+    opacity: 0;
+  }
+}
+@keyframes salimSearchWaveRipple {
+  0% {
+    -webkit-transform: translate3d(42%, 0, 0) scale3d(0.45, 0.85, 1);
+    transform: translate3d(42%, 0, 0) scale3d(0.45, 0.85, 1);
+    opacity: 0;
+  }
+  20% { opacity: 0.52; }
+  58% {
+    -webkit-transform: translate3d(-12%, 0, 0) scale3d(1.18, 1.15, 1);
+    transform: translate3d(-12%, 0, 0) scale3d(1.18, 1.15, 1);
+    opacity: 0.34;
+  }
+  84%, 100% {
+    -webkit-transform: translate3d(-58%, 0, 0) scale3d(1.45, 1.25, 1);
     transform: translate3d(-58%, 0, 0) scale3d(1.45, 1.25, 1);
     opacity: 0;
   }
 }
 
-@keyframes salimPmSheen {
+@-webkit-keyframes salimPmSheen {
   0%, 15% {
+    -webkit-transform: translate3d(140%, 0, 0) skewX(-22deg);
     transform: translate3d(140%, 0, 0) skewX(-22deg);
     opacity: 0;
   }
-  35% {
-    opacity: 0.55;
-  }
-  65% {
+  35% { opacity: 0.55; }
+  65%, 100% {
+    -webkit-transform: translate3d(-140%, 0, 0) skewX(-22deg);
     transform: translate3d(-140%, 0, 0) skewX(-22deg);
     opacity: 0;
   }
-  100% {
+}
+@keyframes salimPmSheen {
+  0%, 15% {
+    -webkit-transform: translate3d(140%, 0, 0) skewX(-22deg);
+    transform: translate3d(140%, 0, 0) skewX(-22deg);
+    opacity: 0;
+  }
+  35% { opacity: 0.55; }
+  65%, 100% {
+    -webkit-transform: translate3d(-140%, 0, 0) skewX(-22deg);
     transform: translate3d(-140%, 0, 0) skewX(-22deg);
     opacity: 0;
   }
 }
 
+@-webkit-keyframes salimNavOrbitSpin {
+  0% { -webkit-transform: rotate(0deg); transform: rotate(0deg); }
+  100% { -webkit-transform: rotate(360deg); transform: rotate(360deg); }
+}
 @keyframes salimNavOrbitSpin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
+  0% { -webkit-transform: rotate(0deg); transform: rotate(0deg); }
+  100% { -webkit-transform: rotate(360deg); transform: rotate(360deg); }
 }
 
+@-webkit-keyframes salimNavSparkRise {
+  0% {
+    -webkit-transform: translate3d(0, 4px, 0) scale3d(0.4, 0.4, 1);
+    transform: translate3d(0, 4px, 0) scale3d(0.4, 0.4, 1);
+    opacity: 0;
+  }
+  30% { opacity: 0.95; }
+  75% { opacity: 0.72; }
+  100% {
+    -webkit-transform: translate3d(var(--sx, 0px), -14px, 0) scale3d(1.05, 1.05, 1);
+    transform: translate3d(var(--sx, 0px), -14px, 0) scale3d(1.05, 1.05, 1);
+    opacity: 0;
+  }
+}
 @keyframes salimNavSparkRise {
   0% {
-    transform: translate3d(0, 4px, 0) scale(0.4);
+    -webkit-transform: translate3d(0, 4px, 0) scale3d(0.4, 0.4, 1);
+    transform: translate3d(0, 4px, 0) scale3d(0.4, 0.4, 1);
     opacity: 0;
   }
-  30% {
-    opacity: 0.95;
-  }
-  75% {
-    opacity: 0.72;
-  }
+  30% { opacity: 0.95; }
+  75% { opacity: 0.72; }
   100% {
-    transform: translate3d(var(--sx, 0px), -14px, 0) scale(1.05);
+    -webkit-transform: translate3d(var(--sx, 0px), -14px, 0) scale3d(1.05, 1.05, 1);
+    transform: translate3d(var(--sx, 0px), -14px, 0) scale3d(1.05, 1.05, 1);
     opacity: 0;
   }
 }
 
+@-webkit-keyframes salimNavBurstRing {
+  0% { -webkit-transform: scale3d(0.55, 0.55, 1); transform: scale3d(0.55, 0.55, 1); opacity: 0.9; }
+  100% { -webkit-transform: scale3d(1.55, 1.55, 1); transform: scale3d(1.55, 1.55, 1); opacity: 0; }
+}
 @keyframes salimNavBurstRing {
-  0% {
-    transform: scale(0.55);
-    opacity: 0.9;
-  }
-  100% {
-    transform: scale(1.55);
-    opacity: 0;
-  }
+  0% { -webkit-transform: scale3d(0.55, 0.55, 1); transform: scale3d(0.55, 0.55, 1); opacity: 0.9; }
+  100% { -webkit-transform: scale3d(1.55, 1.55, 1); transform: scale3d(1.55, 1.55, 1); opacity: 0; }
 }
 
 .salim-channels-stage {
@@ -656,6 +756,10 @@ nav,
 
 .salim-channels-backdrop {
   position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   pointer-events: none;
   z-index: 0;
@@ -667,7 +771,7 @@ nav,
     linear-gradient(180deg, rgba(7, 11, 22, 0.68) 0%, rgba(5, 8, 17, 0.76) 55%, rgba(4, 6, 13, 0.86) 100%);
 }
 
-/* Diagonal golden stardust ribbon sweeping behind the packages panel & search bar */
+/* Diagonal golden stardust ribbon (pre-feathered radial gradient, zero expensive blur() pass) */
 .salim-gold-trail {
   position: absolute;
   top: 4%;
@@ -675,15 +779,18 @@ nav,
   right: -18%;
   height: 460px;
   background:
-    radial-gradient(ellipse 58% 22% at 50% 42%, rgba(254, 240, 138, 0.28) 0%, rgba(251, 191, 36, 0.16) 36%, rgba(217, 119, 6, 0.06) 62%, transparent 80%),
-    radial-gradient(ellipse 36% 14% at 58% 46%, rgba(255, 251, 235, 0.22) 0%, transparent 70%);
-  filter: blur(14px);
+    radial-gradient(ellipse 64% 34% at 50% 42%, rgba(254, 240, 138, 0.24) 0%, rgba(251, 191, 36, 0.14) 38%, rgba(217, 119, 6, 0.05) 66%, transparent 88%),
+    radial-gradient(ellipse 42% 20% at 58% 46%, rgba(255, 251, 235, 0.18) 0%, transparent 78%);
+  -webkit-animation: salimTrailWave 10s ease-in-out infinite;
   animation: salimTrailWave 10s ease-in-out infinite;
-  will-change: transform, opacity;
 }
 
 .salim-gold-dust-layer {
   position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   background-image:
     radial-gradient(1.5px 1.5px at 22% 16%, rgba(254, 249, 195, 0.95) 50%, transparent 100%),
@@ -699,12 +806,16 @@ nav,
     radial-gradient(1.5px 1.5px at 76% 62%, rgba(253, 224, 71, 0.78) 50%, transparent 100%),
     radial-gradient(2px 2px at 38% 76%, rgba(251, 191, 36, 0.75) 50%, transparent 100%),
     radial-gradient(1.5px 1.5px at 84% 82%, rgba(254, 240, 138, 0.75) 50%, transparent 100%);
+  -webkit-animation: salimDustFloat 11s ease-in-out infinite;
   animation: salimDustFloat 11s ease-in-out infinite;
-  will-change: transform, opacity;
 }
 
 .salim-gold-dust-layer-b {
   position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   background-image:
     radial-gradient(1.5px 1.5px at 29% 19%, rgba(253, 224, 71, 0.85) 50%, transparent 100%),
@@ -715,8 +826,8 @@ nav,
     radial-gradient(2px 2px at 37% 35%, rgba(254, 249, 195, 0.85) 50%, transparent 100%),
     radial-gradient(1.5px 1.5px at 18% 68%, rgba(253, 224, 71, 0.72) 50%, transparent 100%),
     radial-gradient(2px 2px at 64% 74%, rgba(251, 191, 36, 0.82) 50%, transparent 100%);
+  -webkit-animation: salimDustFloat 14s ease-in-out infinite reverse;
   animation: salimDustFloat 14s ease-in-out infinite reverse;
-  will-change: transform, opacity;
 }
 
 .salim-royal-header {
@@ -730,6 +841,7 @@ nav,
     inset 0 1px 0 rgba(254, 243, 199, 0.22),
     0 12px 30px rgba(0, 0, 0, 0.65),
     0 0 22px rgba(245, 158, 11, 0.16) !important;
+  -webkit-animation: salimCardReveal 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
   animation: salimCardReveal 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
@@ -781,6 +893,7 @@ nav,
     inset 0 -1px 0 rgba(251, 191, 36, 0.12),
     0 14px 36px rgba(0, 0, 0, 0.55),
     0 0 28px rgba(245, 158, 11, 0.22) !important;
+  -webkit-animation: salimCardReveal 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.04s both;
   animation: salimCardReveal 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.04s both;
 }
 
@@ -881,6 +994,10 @@ nav,
 .salim-pkg-cta::before {
   content: "";
   position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   border-radius: inherit;
   z-index: 1;
@@ -888,9 +1005,9 @@ nav,
   background:
     radial-gradient(125% 95% at 50% 0%, rgba(255, 253, 240, 0.48) 0%, rgba(254, 240, 138, 0.26) 48%, rgba(245, 158, 11, 0.12) 100%);
   box-shadow: inset 0 0 10px rgba(254, 240, 138, 0.45);
+  -webkit-animation: salimCtaGoldenGlow 3.2s ease-in-out infinite;
   animation: salimCtaGoldenGlow 3.2s ease-in-out infinite;
   transition: opacity 70ms ease;
-  will-change: opacity;
 }
 
 /* Thin crisp diagonal luminous ribbon gliding regularly across 100% of the surface */
@@ -913,6 +1030,7 @@ nav,
     transparent 56.5%,
     transparent 100%
   );
+  -webkit-animation: salimCtaLightBeam 3.2s cubic-bezier(0.36, 0, 0.22, 1) infinite;
   animation: salimCtaLightBeam 3.2s cubic-bezier(0.36, 0, 0.22, 1) infinite;
   will-change: transform, opacity;
 }
@@ -1001,7 +1119,6 @@ nav,
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  contain: layout paint;
   border-radius: 9999px !important;
   background: linear-gradient(
     95deg,
@@ -1017,12 +1134,15 @@ nav,
     inset 0 -1px 0 rgba(245, 158, 11, 0.10),
     0 0 20px rgba(245, 158, 11, 0.18),
     0 8px 22px rgba(0, 0, 0, 0.52) !important;
+  -webkit-transition: border-color 0.22s ease, box-shadow 0.24s ease, -webkit-transform 0.16s ease;
   transition: border-color 0.22s ease, box-shadow 0.24s ease, transform 0.16s ease;
 }
 
 .salim-ch-search-sheen {
   position: absolute;
-  inset: -10% auto -10% -20%;
+  top: -10%;
+  bottom: -10%;
+  left: -20%;
   width: 44%;
   pointer-events: none;
   z-index: 1;
@@ -1034,6 +1154,7 @@ nav,
     rgba(251, 191, 36, 0.12) 62%,
     transparent 100%
   );
+  -webkit-animation: salimSearchSheenSweep 5.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   animation: salimSearchSheenSweep 5.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   will-change: transform, opacity;
 }
@@ -1053,6 +1174,7 @@ nav,
     rgba(251, 191, 36, 0.14) 45%,
     transparent 76%
   );
+  -webkit-animation: salimSearchWaveRipple 4.4s ease-in-out infinite;
   animation: salimSearchWaveRipple 4.4s ease-in-out infinite;
   will-change: transform, opacity;
 }
@@ -1119,12 +1241,18 @@ nav,
     inset 0 1px 0 rgba(254, 243, 199, 0.14),
     0 10px 26px rgba(0, 0, 0, 0.68),
     0 0 14px rgba(245, 158, 11, 0.10) !important;
+  -webkit-transition: -webkit-transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.28s ease, box-shadow 0.28s ease;
   transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.28s ease, box-shadow 0.28s ease;
+  -webkit-animation: salimCardReveal 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
   animation: salimCardReveal 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .salim-ch-card-clip {
   position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   border-radius: inherit;
   overflow: hidden;
@@ -1134,6 +1262,10 @@ nav,
 
 .salim-ch-card-sheen {
   position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   background: linear-gradient(125deg, rgba(254, 243, 199, 0.06) 0%, transparent 45%, rgba(251, 191, 36, 0.04) 100%);
   pointer-events: none;
@@ -1141,6 +1273,10 @@ nav,
 
 .salim-ch-electric-slot {
   position: absolute;
+  top: -10px;
+  right: -10px;
+  bottom: -10px;
+  left: -10px;
   inset: -10px;
   pointer-events: none;
   z-index: 25;
@@ -1205,14 +1341,13 @@ nav,
 
 .salim-ch-orb {
   position: absolute;
-  top: -2rem;
-  right: -2rem;
-  width: 6rem;
-  height: 6rem;
+  top: -2.25rem;
+  right: -2.25rem;
+  width: 7rem;
+  height: 7rem;
   border-radius: 9999px;
   pointer-events: none;
-  filter: blur(22px);
-  opacity: 0.75;
+  opacity: 0.72;
   transition: opacity 0.2s ease;
 }
 
@@ -1221,11 +1356,11 @@ nav,
 }
 
 .salim-ch-orb-gold {
-  background: rgba(251, 191, 36, 0.18);
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.22) 0%, rgba(251, 191, 36, 0.08) 45%, transparent 72%);
 }
 
 .salim-ch-orb-emerald {
-  background: rgba(52, 211, 153, 0.15);
+  background: radial-gradient(circle, rgba(52, 211, 153, 0.18) 0%, rgba(52, 211, 153, 0.06) 45%, transparent 72%);
 }
 
 .salim-ch-avatar-ring {
@@ -1261,7 +1396,9 @@ nav,
     inset 0 1px 0 rgba(254, 249, 195, 0.38),
     0 14px 34px rgba(0, 0, 0, 0.78),
     0 0 28px rgba(245, 158, 11, 0.30) !important;
+  -webkit-transition: -webkit-transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
   transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+  -webkit-animation: salimCardReveal 0.46s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both;
   animation: salimCardReveal 0.46s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both;
 }
 
@@ -1274,8 +1411,8 @@ nav,
   width: 34%;
   pointer-events: none;
   background: linear-gradient(90deg, transparent 0%, rgba(254, 249, 195, 0.24) 50%, transparent 100%);
+  -webkit-animation: salimPmSheen 5.6s ease-in-out infinite;
   animation: salimPmSheen 5.6s ease-in-out infinite;
-  will-change: transform, opacity;
 }
 
 .salim-pm-spotlight:hover {
@@ -1379,40 +1516,46 @@ nav.sticky.bottom-0.salim-nav-dock,
 
 .salim-nav-halo {
   top: -0.35rem;
-  width: 2.75rem;
-  height: 2.75rem;
-  background: radial-gradient(circle, rgba(251, 191, 36, 0.36) 0%, rgba(245, 158, 11, 0.10) 65%, transparent 100%);
-  filter: blur(5px);
+  width: 2.9rem;
+  height: 2.9rem;
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.34) 0%, rgba(245, 158, 11, 0.14) 48%, transparent 78%);
+  -webkit-transition: opacity 280ms ease, -webkit-transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
   transition: opacity 280ms ease, transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform, opacity;
 }
 
 .salim-nav-halo-active {
   opacity: 1;
-  transform: scale(1.06);
+  -webkit-transform: scale3d(1.06, 1.06, 1);
+  transform: scale3d(1.06, 1.06, 1);
 }
 
 .salim-nav-halo-idle {
   opacity: 0;
-  transform: scale(0.5);
+  -webkit-transform: scale3d(0.5, 0.5, 1);
+  transform: scale3d(0.5, 0.5, 1);
 }
 
 .salim-nav-icon-wrap {
-  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1), color 220ms ease, filter 260ms ease;
-  will-change: transform;
+  -webkit-transition: -webkit-transform 260ms cubic-bezier(0.22, 1, 0.36, 1), color 220ms ease;
+  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1), color 220ms ease;
 }
 
 .salim-nav-icon-wrap.is-active {
-  transform: scale(1.13) translate3d(0, -1px, 0);
+  -webkit-transform: scale3d(1.13, 1.13, 1) translate3d(0, -1px, 0);
+  transform: scale3d(1.13, 1.13, 1) translate3d(0, -1px, 0);
 }
 
 .salim-nav-icon-active {
-  filter: drop-shadow(0 0 11px rgba(251, 191, 36, 0.85));
+  filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.72));
 }
 
 /* Sweeping golden light orbit around the selected nav icon */
 .salim-nav-orbit {
   position: absolute;
+  top: -6px;
+  right: -6px;
+  bottom: -6px;
+  left: -6px;
   inset: -6px;
   border-radius: 9999px;
   pointer-events: none;
@@ -1432,21 +1575,31 @@ nav.sticky.bottom-0.salim-nav-dock,
 
 .salim-nav-orbit.is-active {
   opacity: 0.92;
+  -webkit-animation: salimNavOrbitSpin 3.6s linear infinite;
   animation: salimNavOrbitSpin 3.6s linear infinite;
 }
 
 .salim-nav-tab.is-just-activated .salim-nav-orbit.is-active::after {
   content: "";
   position: absolute;
+  top: -2px;
+  right: -2px;
+  bottom: -2px;
+  left: -2px;
   inset: -2px;
   border-radius: 9999px;
   border: 1.5px solid rgba(254, 240, 138, 0.85);
+  -webkit-animation: salimNavBurstRing 380ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
   animation: salimNavBurstRing 380ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Lightweight golden sparks around the active nav icon */
 .salim-nav-sparks {
   position: absolute;
+  top: -8px;
+  right: -8px;
+  bottom: -8px;
+  left: -8px;
   inset: -8px;
   pointer-events: none;
   opacity: 0;
@@ -1468,6 +1621,7 @@ nav.sticky.bottom-0.salim-nav-dock,
 }
 
 .salim-nav-sparks.is-active i {
+  -webkit-animation: salimNavSparkRise 2.2s ease-out infinite;
   animation: salimNavSparkRise 2.2s ease-out infinite;
 }
 
@@ -1527,65 +1681,56 @@ nav.sticky.bottom-0.salim-nav-dock,
 }
 
 /* ==========================================================================
-   11.6 ADAPTIVE DEVICE PERFORMANCE & ACCESSIBILITY MODES
+   11.6 ADAPTIVE GPU-SAFE COMPOSITING (2-3GB RAM / MALI-T720 / MALI-G52)
+   Keeps 100% of animations, colors, and golden effects ACTIVE while dropping
+   expensive per-frame backdrop-filter/filter blurs that stall low-VRAM GPUs.
    ========================================================================== */
-@media (prefers-reduced-motion: reduce) {
-  .salim-gold-trail,
-  .salim-gold-dust-layer,
-  .salim-gold-dust-layer-b,
-  .salim-royal-header,
-  .salim-pkg-panel,
-  .salim-ch-card,
-  .salim-pm-spotlight,
-  .salim-pm-spotlight::after,
-  .salim-pkg-cta::before,
-  .salim-pkg-cta::after,
-  .salim-ch-search-sheen,
-  .salim-ch-search-wave,
-  .salim-nav-orbit.is-active,
-  .salim-nav-sparks.is-active i {
-    animation: none !important;
-    -webkit-animation: none !important;
-  }
-  .salim-nav-traveler,
-  .salim-nav-halo,
-  .salim-nav-icon-wrap,
-  .salim-nav-indicator {
-    transition-duration: 0.01ms !important;
-  }
-}
-
-.salim-fx-balanced .salim-nav-sparks i:nth-child(n + 5) {
+.salim-fx-balanced .salim-nav-sparks i:nth-child(n + 5),
+.salim-fx-compat .salim-nav-sparks i:nth-child(n + 4) {
   display: none;
 }
 
 .sami-legacy-android .salim-royal-header,
 .sami-legacy-android .salim-pkg-panel,
 .sami-legacy-android .salim-ch-search,
-.sami-legacy-android .salim-ch-card {
+.sami-legacy-android .salim-ch-card,
+.sami-legacy-android .salim-nav-dock,
+.sami-gpu-safe .salim-royal-header,
+.sami-gpu-safe .salim-pkg-panel,
+.sami-gpu-safe .salim-ch-search,
+.sami-gpu-safe .salim-ch-card,
+.sami-gpu-safe .salim-nav-dock,
+.sami-gpu-safe .backdrop-blur-md,
+.sami-gpu-safe .backdrop-blur-sm,
+.sami-gpu-safe .backdrop-blur-xl,
+.sami-gpu-safe .backdrop-blur-xs {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
 
-.sami-legacy-android .salim-pkg-panel {
-  background: rgba(13, 19, 34, 0.88) !important;
+.sami-gpu-safe .salim-nav-icon-active {
+  filter: none !important;
 }
 
-.sami-legacy-android .salim-pkg-row {
-  background: rgba(18, 26, 44, 0.86) !important;
+.sami-legacy-android .salim-pkg-panel,
+.sami-gpu-safe .salim-pkg-panel {
+  background: linear-gradient(155deg, rgba(16, 24, 42, 0.90) 0%, rgba(10, 16, 30, 0.94) 100%) !important;
 }
 
-.sami-legacy-android .salim-ch-search {
-  background: rgba(15, 22, 38, 0.90) !important;
+.sami-legacy-android .salim-pkg-row,
+.sami-gpu-safe .salim-pkg-row {
+  background: linear-gradient(125deg, rgba(22, 31, 52, 0.90) 0%, rgba(13, 19, 34, 0.94) 100%) !important;
+}
+
+.sami-legacy-android .salim-ch-search,
+.sami-gpu-safe .salim-ch-search {
+  background: linear-gradient(95deg, rgba(16, 23, 38, 0.92) 0%, rgba(44, 34, 15, 0.88) 100%) !important;
 }
 
 /* ==========================================================================
    12. CROSS-ANDROID WEBVIEW ANIMATION, TRANSFORM & GPU COMPATIBILITY LAYER
-   Fixes:
-   - Missing .animate-in / .fade-in / .zoom-in / .slide-in-from-* keyframes
-   - Older WebView (Chrome < 104) missing standalone CSS `translate:` / `scale:` / `rotate:`
-   - Older WebView missing `-webkit-animation` / `translate3d` hardware compositing
-   - Missing conic-gradient/mask support on `.salim-nav-orbit`
+   Supports: Android 7.0 (LG K20 Plus / Mali-T720 / 2GB), Galaxy S8,
+   Galaxy A13 (Mali-G52 / G57), and newer Android WebViews.
    ========================================================================== */
 @-webkit-keyframes samiFadeIn {
   from { opacity: 0; -webkit-transform: translate3d(0, 6px, 0); transform: translate3d(0, 6px, 0); }
@@ -1632,6 +1777,26 @@ nav.sticky.bottom-0.salim-nav-dock,
   to { opacity: 1; -webkit-transform: scale3d(1, 1, 1); transform: scale3d(1, 1, 1); }
 }
 
+@-webkit-keyframes samiShakeCompat {
+  0%, 100% { -webkit-transform: translate3d(0, 0, 0); transform: translate3d(0, 0, 0); }
+  20%, 60% { -webkit-transform: translate3d(-5px, 0, 0); transform: translate3d(-5px, 0, 0); }
+  40%, 80% { -webkit-transform: translate3d(5px, 0, 0); transform: translate3d(5px, 0, 0); }
+}
+@keyframes samiShakeCompat {
+  0%, 100% { -webkit-transform: translate3d(0, 0, 0); transform: translate3d(0, 0, 0); }
+  20%, 60% { -webkit-transform: translate3d(-5px, 0, 0); transform: translate3d(-5px, 0, 0); }
+  40%, 80% { -webkit-transform: translate3d(5px, 0, 0); transform: translate3d(5px, 0, 0); }
+}
+
+@-webkit-keyframes samiPingCompat {
+  0% { -webkit-transform: scale3d(1, 1, 1); transform: scale3d(1, 1, 1); opacity: 0.85; }
+  75%, 100% { -webkit-transform: scale3d(2, 2, 1); transform: scale3d(2, 2, 1); opacity: 0; }
+}
+@keyframes samiPingCompat {
+  0% { -webkit-transform: scale3d(1, 1, 1); transform: scale3d(1, 1, 1); opacity: 0.85; }
+  75%, 100% { -webkit-transform: scale3d(2, 2, 1); transform: scale3d(2, 2, 1); opacity: 0; }
+}
+
 @-webkit-keyframes samiBounceCompat {
   0%, 100% { -webkit-transform: translate3d(0, -18%, 0); transform: translate3d(0, -18%, 0); }
   50% { -webkit-transform: translate3d(0, 0, 0); transform: translate3d(0, 0, 0); }
@@ -1659,10 +1824,20 @@ nav.sticky.bottom-0.salim-nav-dock,
   50% { opacity: 0.55; }
 }
 
+@-webkit-keyframes samiProgressShimmerCompat {
+  0% { -webkit-transform: translate3d(100%, 0, 0); transform: translate3d(100%, 0, 0); }
+  100% { -webkit-transform: translate3d(-100%, 0, 0); transform: translate3d(-100%, 0, 0); }
+}
+@keyframes samiProgressShimmerCompat {
+  0% { -webkit-transform: translate3d(100%, 0, 0); transform: translate3d(100%, 0, 0); }
+  100% { -webkit-transform: translate3d(-100%, 0, 0); transform: translate3d(-100%, 0, 0); }
+}
+
 .animate-in {
   -webkit-animation: samiFadeIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
   animation: samiFadeIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  will-change: opacity, transform;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .animate-in.fade-in {
@@ -1670,12 +1845,14 @@ nav.sticky.bottom-0.salim-nav-dock,
   animation: samiFadeOnly 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.animate-in.slide-in-from-top {
+.animate-in.slide-in-from-top,
+.animate-in.slide-in-from-top-2 {
   -webkit-animation: samiSlideFromTop 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
   animation: samiSlideFromTop 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .animate-in.slide-in-from-bottom,
+.animate-in.slide-in-from-bottom-2,
 .animate-in.slide-in-from-bottom-4 {
   -webkit-animation: samiSlideFromBottom 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
   animation: samiSlideFromBottom 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -1687,10 +1864,17 @@ nav.sticky.bottom-0.salim-nav-dock,
   animation: samiZoomIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+.animate-in.shake {
+  -webkit-animation: samiShakeCompat 240ms ease-in-out both;
+  animation: samiShakeCompat 240ms ease-in-out both;
+}
+
+.animate-in.duration-75 { -webkit-animation-duration: 75ms; animation-duration: 75ms; }
 .animate-in.duration-150 { -webkit-animation-duration: 150ms; animation-duration: 150ms; }
 .animate-in.duration-200 { -webkit-animation-duration: 200ms; animation-duration: 200ms; }
 .animate-in.duration-300 { -webkit-animation-duration: 300ms; animation-duration: 300ms; }
 .animate-in.duration-500 { -webkit-animation-duration: 500ms; animation-duration: 500ms; }
+.animate-in.duration-700 { -webkit-animation-duration: 700ms; animation-duration: 700ms; }
 
 .animate-spin {
   -webkit-animation: samiSpinCompat 1s linear infinite !important;
@@ -1707,6 +1891,59 @@ nav.sticky.bottom-0.salim-nav-dock,
   animation: samiBounceCompat 1s infinite !important;
 }
 
+.animate-ping {
+  -webkit-animation: samiPingCompat 1.2s cubic-bezier(0, 0, 0.2, 1) infinite !important;
+  animation: samiPingCompat 1.2s cubic-bezier(0, 0, 0.2, 1) infinite !important;
+}
+
+.progress-shimmer-bar {
+  -webkit-animation: samiProgressShimmerCompat 2.4s linear infinite !important;
+  animation: samiProgressShimmerCompat 2.4s linear infinite !important;
+}
+
+/* Unlayered transitions for WebView < 99 (Android 7.0-11 lacking @layer) */
+.transition {
+  -webkit-transition-property: color, background-color, border-color, opacity, box-shadow, -webkit-transform;
+  transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+  -webkit-transition-duration: 150ms;
+  transition-duration: 150ms;
+  -webkit-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+.transition-all {
+  -webkit-transition-property: all;
+  transition-property: all;
+  -webkit-transition-duration: 150ms;
+  transition-duration: 150ms;
+  -webkit-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+.transition-colors {
+  -webkit-transition-property: color, background-color, border-color;
+  transition-property: color, background-color, border-color;
+  -webkit-transition-duration: 150ms;
+  transition-duration: 150ms;
+}
+.transition-opacity {
+  -webkit-transition-property: opacity;
+  transition-property: opacity;
+  -webkit-transition-duration: 150ms;
+  transition-duration: 150ms;
+}
+.transition-transform {
+  -webkit-transition-property: -webkit-transform, transform;
+  transition-property: transform;
+  -webkit-transition-duration: 150ms;
+  transition-duration: 150ms;
+}
+.duration-75 { -webkit-transition-duration: 75ms; transition-duration: 75ms; }
+.duration-150 { -webkit-transition-duration: 150ms; transition-duration: 150ms; }
+.duration-200 { -webkit-transition-duration: 200ms; transition-duration: 200ms; }
+.duration-300 { -webkit-transition-duration: 300ms; transition-duration: 300ms; }
+.duration-500 { -webkit-transition-duration: 500ms; transition-duration: 500ms; }
+.duration-700 { -webkit-transition-duration: 700ms; transition-duration: 700ms; }
+.ease-out { -webkit-transition-timing-function: cubic-bezier(0, 0, 0.2, 1); transition-timing-function: cubic-bezier(0, 0, 0.2, 1); }
+
 /* Instant tactile feedback for touchscreens (Android WebView) */
 button,
 [role="button"] {
@@ -1714,27 +1951,18 @@ button,
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Guarantee GPU compositing for interactive cards, nav tabs & animated FX layers */
-.salim-nav-dock,
+/* Guarantee clean GPU compositing ONLY for dedicated animated FX layers without fighting keyframe transforms */
 .salim-nav-traveler,
-.salim-nav-icon-wrap,
 .salim-nav-orbit,
-.salim-nav-halo,
-.salim-ch-card,
 .salim-ch-search-sheen,
 .salim-ch-search-wave,
-.salim-pkg-cta,
-.salim-pm-spotlight,
 .salim-gold-dust-layer,
-.salim-gold-trail,
-.animate-in {
+.salim-gold-trail {
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
 }
 
-/* Fallback for older Android WebViews without CSS `translate:`/`scale:` individual properties */
+/* Fallback for older Android WebViews without CSS `translate:`/`scale:`/`rotate:` individual properties (< Chrome 104) */
 @supports not (translate: 0px) {
   .-translate-x-1\/2 {
     -webkit-transform: translate3d(-50%, 0, 0) !important;
@@ -1744,22 +1972,55 @@ button,
     -webkit-transform: translate3d(0, -50%, 0) !important;
     transform: translate3d(0, -50%, 0) !important;
   }
+  .-translate-x-6 {
+    -webkit-transform: translate3d(-1.5rem, 0, 0) !important;
+    transform: translate3d(-1.5rem, 0, 0) !important;
+  }
+  .translate-x-full {
+    -webkit-transform: translate3d(100%, 0, 0) !important;
+    transform: translate3d(100%, 0, 0) !important;
+  }
   .translate-x-0,
   .translate-y-0 {
     -webkit-transform: translate3d(0, 0, 0) !important;
     transform: translate3d(0, 0, 0) !important;
   }
+  .active\:scale-90:active {
+    -webkit-transform: scale3d(0.9, 0.9, 1) !important;
+    transform: scale3d(0.9, 0.9, 1) !important;
+  }
   .active\:scale-95:active {
     -webkit-transform: scale3d(0.95, 0.95, 1) !important;
     transform: scale3d(0.95, 0.95, 1) !important;
   }
+  .active\:scale-98:active,
   .active\:scale-\[0\.98\]:active {
     -webkit-transform: scale3d(0.98, 0.98, 1) !important;
     transform: scale3d(0.98, 0.98, 1) !important;
   }
+  .active\:scale-\[0\.99\]:active {
+    -webkit-transform: scale3d(0.99, 0.99, 1) !important;
+    transform: scale3d(0.99, 0.99, 1) !important;
+  }
   .scale-105 {
     -webkit-transform: scale3d(1.05, 1.05, 1) !important;
     transform: scale3d(1.05, 1.05, 1) !important;
+  }
+  .scale-110 {
+    -webkit-transform: scale3d(1.1, 1.1, 1) !important;
+    transform: scale3d(1.1, 1.1, 1) !important;
+  }
+  .scale-\[1\.01\] {
+    -webkit-transform: scale3d(1.01, 1.01, 1) !important;
+    transform: scale3d(1.01, 1.01, 1) !important;
+  }
+  .rotate-45 {
+    -webkit-transform: rotate(45deg) !important;
+    transform: rotate(45deg) !important;
+  }
+  .rotate-180 {
+    -webkit-transform: rotate(180deg) !important;
+    transform: rotate(180deg) !important;
   }
 }
 
@@ -1767,41 +2028,81 @@ button,
   -webkit-transform: translate3d(-50%, 0, 0) !important;
   transform: translate3d(-50%, 0, 0) !important;
 }
-.sami-no-css-translate .active\:scale-95:active {
-  -webkit-transform: scale3d(0.95, 0.95, 1) !important;
-  transform: scale3d(0.95, 0.95, 1) !important;
-}
-.sami-no-css-translate .active\:scale-\[0\.98\]:active {
-  -webkit-transform: scale3d(0.98, 0.98, 1) !important;
-  transform: scale3d(0.98, 0.98, 1) !important;
-}
-.sami-no-css-translate .hover\:scale-\[1\.01\]:hover {
-  -webkit-transform: scale3d(1.01, 1.01, 1) !important;
-  transform: scale3d(1.01, 1.01, 1) !important;
-}
-.sami-no-css-translate .hover\:scale-105:hover {
-  -webkit-transform: scale3d(1.05, 1.05, 1) !important;
-  transform: scale3d(1.05, 1.05, 1) !important;
-}
-.sami-no-css-translate .scale-105 {
-  -webkit-transform: scale3d(1.05, 1.05, 1) !important;
-  transform: scale3d(1.05, 1.05, 1) !important;
-}
 .sami-no-css-translate .-translate-y-1\/2 {
   -webkit-transform: translate3d(0, -50%, 0) !important;
   transform: translate3d(0, -50%, 0) !important;
+}
+.sami-no-css-translate .-translate-x-6 {
+  -webkit-transform: translate3d(-1.5rem, 0, 0) !important;
+  transform: translate3d(-1.5rem, 0, 0) !important;
+}
+.sami-no-css-translate .translate-x-full {
+  -webkit-transform: translate3d(100%, 0, 0) !important;
+  transform: translate3d(100%, 0, 0) !important;
 }
 .sami-no-css-translate .translate-x-0,
 .sami-no-css-translate .translate-y-0 {
   -webkit-transform: translate3d(0, 0, 0) !important;
   transform: translate3d(0, 0, 0) !important;
 }
+.sami-no-css-translate .active\:scale-90:active {
+  -webkit-transform: scale3d(0.9, 0.9, 1) !important;
+  transform: scale3d(0.9, 0.9, 1) !important;
+}
+.sami-no-css-translate .active\:scale-95:active {
+  -webkit-transform: scale3d(0.95, 0.95, 1) !important;
+  transform: scale3d(0.95, 0.95, 1) !important;
+}
+.sami-no-css-translate .active\:scale-98:active,
+.sami-no-css-translate .active\:scale-\[0\.98\]:active {
+  -webkit-transform: scale3d(0.98, 0.98, 1) !important;
+  transform: scale3d(0.98, 0.98, 1) !important;
+}
+.sami-no-css-translate .active\:scale-\[0\.99\]:active {
+  -webkit-transform: scale3d(0.99, 0.99, 1) !important;
+  transform: scale3d(0.99, 0.99, 1) !important;
+}
+.sami-no-css-translate .hover\:scale-\[1\.01\]:hover {
+  -webkit-transform: scale3d(1.01, 1.01, 1) !important;
+  transform: scale3d(1.01, 1.01, 1) !important;
+}
+.sami-no-css-translate .hover\:scale-105:hover,
+.sami-no-css-translate .group:hover .group-hover\:scale-105 {
+  -webkit-transform: scale3d(1.05, 1.05, 1) !important;
+  transform: scale3d(1.05, 1.05, 1) !important;
+}
+.sami-no-css-translate .group:hover .group-hover\:translate-x-\[-2px\] {
+  -webkit-transform: translate3d(-2px, 0, 0) !important;
+  transform: translate3d(-2px, 0, 0) !important;
+}
+.sami-no-css-translate .scale-105 {
+  -webkit-transform: scale3d(1.05, 1.05, 1) !important;
+  transform: scale3d(1.05, 1.05, 1) !important;
+}
+.sami-no-css-translate .scale-110 {
+  -webkit-transform: scale3d(1.1, 1.1, 1) !important;
+  transform: scale3d(1.1, 1.1, 1) !important;
+}
+.sami-no-css-translate .scale-\[1\.01\] {
+  -webkit-transform: scale3d(1.01, 1.01, 1) !important;
+  transform: scale3d(1.01, 1.01, 1) !important;
+}
+.sami-no-css-translate .rotate-45 {
+  -webkit-transform: rotate(45deg) !important;
+  transform: rotate(45deg) !important;
+}
+.sami-no-css-translate .rotate-180 {
+  -webkit-transform: rotate(180deg) !important;
+  transform: rotate(180deg) !important;
+}
 
-/* Mask fallback for `.salim-nav-orbit` on older Chromium WebViews */
-.sami-no-css-mask .salim-nav-orbit {
+/* Mask & conic-gradient fallback for `.salim-nav-orbit` on Android 7.0+ WebViews */
+.sami-no-css-mask .salim-nav-orbit,
+.sami-no-conic .salim-nav-orbit {
   background: transparent !important;
-  border: 1.5px solid rgba(251, 191, 36, 0.48) !important;
+  border: 1.5px solid rgba(251, 191, 36, 0.36) !important;
   border-top-color: rgba(254, 240, 138, 0.95) !important;
+  border-right-color: rgba(251, 191, 36, 0.72) !important;
   box-shadow: 0 0 10px rgba(251, 191, 36, 0.35);
 }
 

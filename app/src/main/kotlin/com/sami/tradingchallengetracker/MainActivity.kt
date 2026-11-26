@@ -2,6 +2,7 @@ package com.sami.tradingchallengetracker
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.ActivityManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -19,6 +20,7 @@ import android.provider.Settings
 import android.util.Base64
 import android.util.Log
 import android.view.View
+import android.view.WindowManager
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
@@ -38,6 +40,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewCompat
 import com.sami.tradingchallengetracker.util.SamiPushStandbyHelper
 import org.json.JSONObject
 import java.io.File
@@ -82,6 +85,11 @@ class MainActivity : ComponentActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
+        )
 
         createNotificationChannel()
 
@@ -142,6 +150,12 @@ class MainActivity : ComponentActivity() {
             .addPathHandler("/", WebViewAssetLoader.AssetsPathHandler(this))
             .build()
 
+        val memInfo = ActivityManager.MemoryInfo()
+        val actMgr = getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+        actMgr?.getMemoryInfo(memInfo)
+        val totalRamMb = (memInfo.totalMem / (1024L * 1024L)).toInt()
+        val isLowRam = (actMgr?.isLowRamDevice == true) || (totalRamMb in 1..2500)
+
         webView = WebView(this).apply {
             setBackgroundColor(Color.parseColor("#050811"))
             overScrollMode = WebView.OVER_SCROLL_NEVER
@@ -158,6 +172,9 @@ class MainActivity : ComponentActivity() {
                 useWideViewPort = true
                 loadWithOverviewMode = true
                 cacheMode = WebSettings.LOAD_DEFAULT
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    offscreenPreRaster = !isLowRam
+                }
                 setSupportZoom(false)
                 builtInZoomControls = false
                 displayZoomControls = false
@@ -313,6 +330,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (::webView.isInitialized) {
+            webView.onResume()
+            webView.resumeTimers()
+        }
         SamiPushStandbyHelper.setAppForeground(this, true)
         registerForegroundFcmReceiver()
         SamiPushStandbyHelper.ensureFirebaseStandby(applicationContext)
@@ -321,6 +342,9 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         SamiPushStandbyHelper.setAppForeground(this, false)
         unregisterForegroundFcmReceiver()
+        if (::webView.isInitialized) {
+            webView.onPause()
+        }
         super.onPause()
     }
 
@@ -437,6 +461,43 @@ class MainActivity : ComponentActivity() {
                 }.toString()
             } catch (_: Throwable) {
                 """{"versionCode":17,"versionName":"1.3.3","applicationId":"$packageName","isAndroidNative":true}"""
+            }
+        }
+
+        @JavascriptInterface
+        fun getDeviceCapabilities(): String {
+            return try {
+                val memInfo = ActivityManager.MemoryInfo()
+                val actMgr = getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+                actMgr?.getMemoryInfo(memInfo)
+                val totalRamMb = (memInfo.totalMem / (1024L * 1024L)).toInt()
+                val availRamMb = (memInfo.availMem / (1024L * 1024L)).toInt()
+                val isLowRam = (actMgr?.isLowRamDevice == true) || (totalRamMb in 1..2500)
+                val wvPkg = WebViewCompat.getCurrentWebViewPackage(this@MainActivity)
+                @Suppress("DEPRECATION")
+                val refreshRateHz = try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        display?.refreshRate ?: 60f
+                    } else {
+                        windowManager.defaultDisplay?.refreshRate ?: 60f
+                    }
+                } catch (_: Throwable) { 60f }
+                JSONObject().apply {
+                    put("sdkInt", Build.VERSION.SDK_INT)
+                    put("androidRelease", Build.VERSION.RELEASE ?: "")
+                    put("totalRamMb", totalRamMb)
+                    put("availRamMb", availRamMb)
+                    put("isLowRamDevice", isLowRam)
+                    put("cpuCores", Runtime.getRuntime().availableProcessors())
+                    put("manufacturer", Build.MANUFACTURER ?: "")
+                    put("model", Build.MODEL ?: "")
+                    put("hardware", Build.HARDWARE ?: "")
+                    put("webViewPackage", wvPkg?.packageName ?: "")
+                    put("webViewVersion", wvPkg?.versionName ?: "")
+                    put("refreshRateHz", refreshRateHz.toDouble())
+                }.toString()
+            } catch (_: Throwable) {
+                """{"sdkInt":${Build.VERSION.SDK_INT},"androidRelease":"${Build.VERSION.RELEASE ?: ""}","refreshRateHz":60}"""
             }
         }
 

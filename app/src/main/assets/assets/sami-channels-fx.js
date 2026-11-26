@@ -1,34 +1,103 @@
 /**
  * Salim Channels & Navigation Visual/Motion FX Engine
- * - GPU-friendly, visibility-aware, device-adaptive
+ * - Hardware-profile adaptive & WebView compatible (Android 7.0+ / 2GB+ RAM through flagship devices)
  * - 1. Smooth traveling golden energy dock indicator across all bottom nav tabs
  * - 2. Smooth, organic golden electric arcs, flashes & sparks transferring randomly across visible channel cards
- * - Zero React re-render overhead, zero layout thrashing, auto-pauses off-screen / hidden / on page leave
+ * - Never auto-disables animations on older/low-RAM hardware; tunes frame budget, DPR, and geometry complexity cleanly
  */
 (function () {
   'use strict';
 
   var docEl = document.documentElement;
-  var reducedMotionQuery = null;
-  try {
-    reducedMotionQuery = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
-  } catch (_) {}
+
+  function nowMs() {
+    return window.performance && typeof window.performance.now === 'function'
+      ? window.performance.now()
+      : Date.now();
+  }
+
+  function isDocHidden() {
+    return Boolean(document.hidden || document.webkitHidden);
+  }
+
+  function isNodeConnected(el) {
+    if (!el) return false;
+    if (typeof el.isConnected === 'boolean') return el.isConnected;
+    return docEl.contains(el);
+  }
+
+  var rafFn =
+    window.requestAnimationFrame ||
+    window.webkitRequestAnimationFrame ||
+    function (cb) {
+      return setTimeout(function () {
+        cb(nowMs());
+      }, 16);
+    };
+
+  var cancelRafFn =
+    window.cancelAnimationFrame ||
+    window.webkitCancelAnimationFrame ||
+    function (id) {
+      clearTimeout(id);
+    };
+
+  function requestRaf(cb) {
+    return rafFn.call(window, cb);
+  }
+
+  function cancelRaf(id) {
+    if (id) cancelRafFn.call(window, id);
+  }
+
+  function matchesClosest(target, selector) {
+    if (!target) return null;
+    if (typeof target.closest === 'function') return target.closest(selector);
+    var cur = target;
+    while (cur && cur.nodeType === 1) {
+      if (cur.classList && cur.classList.contains(selector.replace(/^\./, ''))) return cur;
+      cur = cur.parentElement;
+    }
+    return null;
+  }
 
   /* ------------------------------------------------------------------------
-   * 1. ADAPTIVE DEVICE PERFORMANCE TIER
+   * 1. ADAPTIVE DEVICE PERFORMANCE TIER (ALWAYS ANIMATED: compat / balanced / ultra)
    * ------------------------------------------------------------------------ */
   function computePerfTier() {
-    var prefersReduced = Boolean(reducedMotionQuery && reducedMotionQuery.matches);
-    if (prefersReduced) {
-      return 'lite';
-    }
-    var isLegacy = Boolean(window.__samiIsLegacyAndroid) || docEl.classList.contains('sami-legacy-android');
-    var cores = Number(navigator.hardwareConcurrency) || 4;
-    var mem = Number(navigator.deviceMemory) || 4;
+    var profile = window.__samiDeviceProfile || {};
+    var isLegacy = Boolean(window.__samiIsLegacyAndroid || profile.isLegacyAndroid || docEl.classList.contains('sami-legacy-android'));
+    var totalRamMb = Number(profile.totalRamMb) || 0;
+    var memGb = Number(profile.deviceMemoryGb) || Number(navigator.deviceMemory) || (totalRamMb ? totalRamMb / 1024 : 4);
+    var cores = Number(profile.cpuCores) || Number(navigator.hardwareConcurrency) || 4;
+    var androidVer = Number(profile.androidVer) || 0;
+    var chromeVer = Number(profile.chromeVer) || 0;
+    var gpuLower = String(profile.gpuRenderer || '').toLowerCase();
+    var isLowRam = Boolean(profile.isLowRam) || (totalRamMb > 0 && totalRamMb <= 2600) || (memGb > 0 && memGb <= 2.2);
+    var isUltraOldGpu =
+      Boolean(profile.isSoftwareGpu) ||
+      gpuLower.indexOf('mali-t') !== -1 ||
+      gpuLower.indexOf('mali-4') !== -1 ||
+      gpuLower.indexOf('adreno (tm) 3') !== -1 ||
+      gpuLower.indexOf('adreno (tm) 4') !== -1 ||
+      gpuLower.indexOf('powervr') !== -1;
+    var isMidGpu = Boolean(profile.isLegacyMaliOrLowGpu) || gpuLower.indexOf('mali-g52') !== -1 || gpuLower.indexOf('mali-g51') !== -1;
 
-    if (isLegacy || cores <= 6 || mem <= 4 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent || '')) {
+    // 2GB RAM / Mali-T720 / Mali-4xx / Android 7-8 / older WebViews: smooth 24fps DPR 1.0 animated tier
+    if (
+      isLowRam ||
+      isUltraOldGpu ||
+      (androidVer > 0 && androidVer < 9) ||
+      (chromeVer > 0 && chromeVer < 80)
+    ) {
+      return 'compat';
+    }
+
+    // 3-4GB RAM / Mali-G52 (Galaxy A13, Galaxy S8 updated) / <= 6 cores: smooth 36fps DPR 1.25 animated tier
+    if (isLegacy || isMidGpu || memGb < 5.5 || cores < 8 || (androidVer > 0 && androidVer < 11)) {
       return 'balanced';
     }
+
     return 'ultra';
   }
 
@@ -37,17 +106,11 @@
   function applyPerfTier(tier) {
     perfTier = tier;
     docEl.dataset.salimFxTier = tier;
-    docEl.classList.remove('salim-fx-lite', 'salim-fx-balanced', 'salim-fx-ultra');
+    docEl.classList.remove('salim-fx-lite', 'salim-fx-compat', 'salim-fx-balanced', 'salim-fx-ultra');
     docEl.classList.add('salim-fx-' + tier);
   }
 
   applyPerfTier(perfTier);
-
-  if (reducedMotionQuery && typeof reducedMotionQuery.addEventListener === 'function') {
-    reducedMotionQuery.addEventListener('change', function () {
-      applyPerfTier(computePerfTier());
-    });
-  }
 
   /* ------------------------------------------------------------------------
    * 2. BOTTOM NAVIGATION TRAVELING GOLDEN ENERGY & SPARK TRANSFER
@@ -70,11 +133,15 @@
       return;
     }
 
-    var centerX = activeBtn.offsetLeft + activeBtn.offsetWidth * 0.5;
+    // Batch layout reads before style writes
+    var btnLeft = activeBtn.offsetLeft;
+    var btnWidth = activeBtn.offsetWidth;
+    var centerX = btnLeft + btnWidth * 0.5;
     var tabKey = activeBtn.getAttribute('data-salim-tab') || String(Math.round(centerX));
 
     if (forceInstant || lastNavTabKey === null) {
       traveler.classList.add('no-transition');
+      traveler.style.webkitTransform = 'translate3d(' + centerX.toFixed(1) + 'px, 0, 0)';
       traveler.style.transform = 'translate3d(' + centerX.toFixed(1) + 'px, 0, 0)';
       traveler.style.opacity = '1';
       void traveler.offsetWidth;
@@ -84,16 +151,15 @@
     }
 
     traveler.style.opacity = '1';
+    traveler.style.webkitTransform = 'translate3d(' + centerX.toFixed(1) + 'px, 0, 0)';
     traveler.style.transform = 'translate3d(' + centerX.toFixed(1) + 'px, 0, 0)';
 
     if (lastNavTabKey !== tabKey) {
       lastNavTabKey = tabKey;
       traveler.classList.remove('is-traveling');
+      activeBtn.classList.remove('is-just-activated');
       void traveler.offsetWidth;
       traveler.classList.add('is-traveling');
-
-      activeBtn.classList.remove('is-just-activated');
-      void activeBtn.offsetWidth;
       activeBtn.classList.add('is-just-activated');
 
       if (navBurstTimer) clearTimeout(navBurstTimer);
@@ -105,8 +171,8 @@
   }
 
   function scheduleNavUpdate(forceInstant) {
-    if (navRafId) cancelAnimationFrame(navRafId);
-    navRafId = requestAnimationFrame(function () {
+    if (navRafId) cancelRaf(navRafId);
+    navRafId = requestRaf(function () {
       navRafId = 0;
       updateNavTraveler(forceInstant);
     });
@@ -115,9 +181,7 @@
   document.addEventListener(
     'click',
     function (ev) {
-      var target = ev.target;
-      if (!target || typeof target.closest !== 'function') return;
-      var btn = target.closest('.salim-nav-tab');
+      var btn = matchesClosest(ev.target, '.salim-nav-tab');
       if (!btn) return;
       scheduleNavUpdate(false);
     },
@@ -128,9 +192,22 @@
     'resize',
     function () {
       scheduleNavUpdate(true);
+      if (slotPrimary && slotPrimary.card) syncCanvasSize(slotPrimary);
+      if (slotFading && slotFading.card) syncCanvasSize(slotFading);
+      if (stagePresent && !cardObserver) probeVisibleCardsByRect();
     },
     { passive: true }
   );
+
+  window.addEventListener('popstate', function () {
+    setTimeout(syncDomState, 40);
+  });
+  window.addEventListener('hashchange', function () {
+    setTimeout(syncDomState, 40);
+  });
+  window.addEventListener('app_open_chat_message', function () {
+    setTimeout(syncDomState, 60);
+  });
 
   /* ------------------------------------------------------------------------
    * 2B. ZERO-LATENCY TACTILE PRESS FEEDBACK FOR "FULL DETAILS" CTA BUTTONS
@@ -175,9 +252,7 @@
     document.addEventListener(
       'pointerdown',
       function (ev) {
-        var target = ev.target;
-        if (!target || typeof target.closest !== 'function') return;
-        var btn = target.closest('.salim-pkg-cta');
+        var btn = matchesClosest(ev.target, '.salim-pkg-cta');
         if (btn) triggerCtaPress(btn);
       },
       { passive: true, capture: true }
@@ -186,8 +261,7 @@
     document.addEventListener(
       'pointerup',
       function (ev) {
-        var target = ev.target;
-        var btn = target && typeof target.closest === 'function' ? target.closest('.salim-pkg-cta') : null;
+        var btn = matchesClosest(ev.target, '.salim-pkg-cta');
         releaseCtaPress(btn, false);
       },
       { passive: true, capture: true }
@@ -204,9 +278,7 @@
     document.addEventListener(
       'touchstart',
       function (ev) {
-        var target = ev.target;
-        if (!target || typeof target.closest !== 'function') return;
-        var btn = target.closest('.salim-pkg-cta');
+        var btn = matchesClosest(ev.target, '.salim-pkg-cta');
         if (btn) triggerCtaPress(btn);
       },
       { passive: true, capture: true }
@@ -214,8 +286,7 @@
     document.addEventListener(
       'touchend',
       function (ev) {
-        var target = ev.target;
-        var btn = target && typeof target.closest === 'function' ? target.closest('.salim-pkg-cta') : null;
+        var btn = matchesClosest(ev.target, '.salim-pkg-cta');
         releaseCtaPress(btn, false);
       },
       { passive: true, capture: true }
@@ -230,9 +301,7 @@
     document.addEventListener(
       'mousedown',
       function (ev) {
-        var target = ev.target;
-        if (!target || typeof target.closest !== 'function') return;
-        var btn = target.closest('.salim-pkg-cta');
+        var btn = matchesClosest(ev.target, '.salim-pkg-cta');
         if (btn) triggerCtaPress(btn);
       },
       true
@@ -240,8 +309,7 @@
     document.addEventListener(
       'mouseup',
       function (ev) {
-        var target = ev.target;
-        var btn = target && typeof target.closest === 'function' ? target.closest('.salim-pkg-cta') : null;
+        var btn = matchesClosest(ev.target, '.salim-pkg-cta');
         releaseCtaPress(btn, false);
       },
       true
@@ -267,7 +335,12 @@
     var canvas = document.createElement('canvas');
     canvas.className = 'salim-electric-canvas';
     canvas.setAttribute('aria-hidden', 'true');
-    var ctx = canvas.getContext('2d', { alpha: true });
+    var ctx = null;
+    try {
+      ctx = canvas.getContext('2d', { alpha: true }) || canvas.getContext('2d');
+    } catch (_) {
+      ctx = canvas.getContext ? canvas.getContext('2d') : null;
+    }
 
     var sparks = [];
     for (var i = 0; i < MAX_SPARKS; i++) {
@@ -292,6 +365,7 @@
       w: 0,
       h: 0,
       dpr: 1,
+      lastSizeCheckAt: 0,
       opacity: 0,
       targetOpacity: 0,
       phase: Math.random() * 100,
@@ -331,7 +405,7 @@
     var pad = 10; // matches CSS .salim-ch-electric-slot { inset: -10px }
     var totalW = cw + pad * 2;
     var totalH = ch + pad * 2;
-    var maxDpr = perfTier === 'ultra' ? 2 : 1.5;
+    var maxDpr = perfTier === 'ultra' ? 2.0 : (perfTier === 'compat' ? 1.0 : 1.25);
     var dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
 
     if (slot.w !== totalW || slot.h !== totalH || slot.dpr !== dpr) {
@@ -366,7 +440,7 @@
   }
 
   function attachSlot(slot, card) {
-    if (!card || !card.isConnected) return false;
+    if (!isNodeConnected(card)) return false;
     var host = card.querySelector('.salim-ch-electric-slot') || card;
     slot.card = card;
     slot.opacity = 0.08;
@@ -390,6 +464,13 @@
     var straightH = Math.max(0, h - 2 * r);
     var arcLen = 0.5 * Math.PI * r;
     var perim = 2 * straightW + 2 * straightH + 4 * arcLen;
+    if (perim <= 0) {
+      out.x = x;
+      out.y = y;
+      out.nx = 0;
+      out.ny = -1;
+      return;
+    }
     var d = t * perim;
 
     if (d < straightW) {
@@ -477,8 +558,14 @@
   var boltPtsX = new Float32Array(28);
   var boltPtsY = new Float32Array(28);
 
+  function getMaxSparkCount() {
+    if (perfTier === 'ultra') return MAX_SPARKS;
+    if (perfTier === 'compat') return 4;
+    return 6;
+  }
+
   function emitSparkFromPoint(slot, x, y, nx, ny, boost) {
-    var maxSparkCount = perfTier === 'ultra' ? MAX_SPARKS : 6;
+    var maxSparkCount = getMaxSparkCount();
     for (var sIdx = 0; sIdx < maxSparkCount; sIdx++) {
       var sp = slot.sparks[sIdx];
       if (!sp.active) {
@@ -501,8 +588,8 @@
   }
 
   function drawElectricArcSpan(ctx, slot, rectX, rectY, rectW, rectH, radius, startT, spanT, seedOffset, alpha, spawnSparks) {
-    var steps = perfTier === 'ultra' ? 22 : 16;
-    var jitterMag = 5.0;
+    var steps = perfTier === 'ultra' ? 22 : (perfTier === 'compat' ? 12 : 16);
+    var jitterMag = perfTier === 'compat' ? 4.2 : 5.0;
     var headNx = 0;
     var headNy = -1;
 
@@ -523,54 +610,60 @@
         headNy = ptScratch.ny;
       }
 
-      if (spawnSparks && i > 1 && i < steps - 1 && Math.random() < (perfTier === 'ultra' ? 0.055 : 0.032)) {
-        emitSparkFromPoint(slot, boltPtsX[i], boltPtsY[i], ptScratch.nx, ptScratch.ny, slot.flashAmp > 0.6);
+      if (spawnSparks && i > 1 && i < steps - 1) {
+        var sparkChance = perfTier === 'ultra' ? 0.055 : (perfTier === 'compat' ? 0.025 : 0.032);
+        if (Math.random() < sparkChance) {
+          emitSparkFromPoint(slot, boltPtsX[i], boltPtsY[i], ptScratch.nx, ptScratch.ny, slot.flashAmp > 0.6);
+        }
       }
     }
 
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // Pass 1: Soft outer amber aura (fast multi-stroke alternative to shadowBlur)
     ctx.beginPath();
     ctx.moveTo(boltPtsX[0], boltPtsY[0]);
     for (var p1 = 1; p1 <= steps; p1++) {
       ctx.lineTo(boltPtsX[p1], boltPtsY[p1]);
     }
-    ctx.strokeStyle = 'rgba(245, 158, 11, ' + (0.22 * alpha).toFixed(3) + ')';
-    ctx.lineWidth = 6.5;
-    ctx.stroke();
+
+    if (perfTier !== 'compat') {
+      // Pass 1: Soft outer amber aura
+      ctx.strokeStyle = 'rgba(245, 158, 11, ' + (0.22 * alpha).toFixed(3) + ')';
+      ctx.lineWidth = 6.5;
+      ctx.stroke();
+    }
 
     // Pass 2: Rich metallic gold arc body
-    ctx.strokeStyle = 'rgba(251, 191, 36, ' + (0.74 * alpha).toFixed(3) + ')';
-    ctx.lineWidth = 2.35;
+    ctx.strokeStyle = 'rgba(251, 191, 36, ' + (0.76 * alpha).toFixed(3) + ')';
+    ctx.lineWidth = perfTier === 'compat' ? 3.2 : 2.35;
     ctx.stroke();
 
     // Pass 3: Bright white-gold electric core
     ctx.strokeStyle = 'rgba(254, 249, 195, ' + (0.96 * alpha).toFixed(3) + ')';
-    ctx.lineWidth = 1.1;
+    ctx.lineWidth = 1.15;
     ctx.stroke();
 
     // Traveling golden electric flash node at the moving head of the arc
     var hx = boltPtsX[steps];
     var hy = boltPtsY[steps];
     var flashScale = 0.7 + 0.55 * slot.flashAmp;
-    ctx.fillStyle = 'rgba(251, 191, 36, ' + (0.34 * alpha).toFixed(3) + ')';
+    ctx.fillStyle = 'rgba(251, 191, 36, ' + (0.36 * alpha).toFixed(3) + ')';
     ctx.beginPath();
-    ctx.arc(hx, hy, 5.2 * flashScale, 0, Math.PI * 2);
+    ctx.arc(hx, hy, 5.0 * flashScale, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = 'rgba(254, 249, 195, ' + (0.92 * alpha).toFixed(3) + ')';
+    ctx.fillStyle = 'rgba(254, 249, 195, ' + (0.94 * alpha).toFixed(3) + ')';
     ctx.beginPath();
     ctx.arc(hx, hy, 1.9 * flashScale, 0, Math.PI * 2);
     ctx.fill();
 
-    if (spawnSparks && slot.flashAmp > 0.62 && Math.random() < 0.24) {
+    if (spawnSparks && slot.flashAmp > 0.62 && Math.random() < (perfTier === 'compat' ? 0.16 : 0.24)) {
       emitSparkFromPoint(slot, hx, hy, headNx, headNy, true);
     }
 
-    // Subtle organic fork filament during higher flash pulses
-    if (alpha > 0.42 && slot.flashAmp > 0.52) {
+    // Organic fork filament during higher flash pulses (balanced & ultra)
+    if (perfTier !== 'compat' && alpha > 0.42 && slot.flashAmp > 0.52) {
       var forkIdx = Math.floor(steps * 0.48);
       var fx = boltPtsX[forkIdx];
       var fy = boltPtsY[forkIdx];
@@ -594,9 +687,15 @@
 
   function renderSlot(slot, dtSec, now) {
     if (!slot.card || !slot.ctx) return false;
-    if (!slot.card.isConnected) {
+    if (!isNodeConnected(slot.card)) {
       detachSlot(slot);
       return false;
+    }
+
+    // Periodic size verification fallback when ResizeObserver is absent (Chromium < 64 / Android 7.0)
+    if (!slot.w || !slot.h || (!gridResizeObserver && now - slot.lastSizeCheckAt > 600)) {
+      slot.lastSizeCheckAt = now;
+      syncCanvasSize(slot);
     }
 
     var opacityRate = slot.targetOpacity > slot.opacity ? 3.8 : 2.3;
@@ -614,7 +713,6 @@
 
     ctx.clearRect(0, 0, w, h);
 
-    // Refresh organic jitter targets periodically and interpolate smoothly each frame
     if (now - slot.lastJitterAt > 95) {
       slot.lastJitterAt = now;
       refreshJitterTargets(slot);
@@ -626,7 +724,6 @@
     }
     slot.flashAmp += (slot.flashTarget - slot.flashAmp) * Math.min(1, dtSec * 9);
 
-    // Fluid, non-uniform organic arc velocity around the perimeter
     var tSec = now * 0.001;
     var driftA = 0.72 + 0.45 * Math.sin(tSec * 1.45 + slot.phase);
     var driftB = 0.72 + 0.45 * Math.cos(tSec * 1.18 + slot.phase * 1.3);
@@ -664,8 +761,7 @@
       );
     }
 
-    // Update and draw smooth golden micro-trail sparks
-    var maxSparkCount = perfTier === 'ultra' ? MAX_SPARKS : 6;
+    var maxSparkCount = getMaxSparkCount();
     for (var i = 0; i < maxSparkCount; i++) {
       var sp = slot.sparks[i];
       if (!sp.active) continue;
@@ -684,7 +780,6 @@
       var lifeRatio = 1 - sp.life / sp.maxLife;
       var sAlpha = lifeRatio * slot.opacity;
 
-      // Tiny spark streak
       ctx.strokeStyle = 'rgba(253, 224, 71, ' + (0.55 * sAlpha).toFixed(3) + ')';
       ctx.lineWidth = sp.size * 0.85;
       ctx.beginPath();
@@ -692,13 +787,11 @@
       ctx.lineTo(sp.x, sp.y);
       ctx.stroke();
 
-      // Outer spark halo
       ctx.fillStyle = 'rgba(251, 191, 36, ' + (0.42 * sAlpha).toFixed(3) + ')';
       ctx.beginPath();
       ctx.arc(sp.x, sp.y, sp.size * 2.1, 0, Math.PI * 2);
       ctx.fill();
 
-      // Hot spark core
       ctx.fillStyle = 'rgba(254, 249, 195, ' + (0.96 * sAlpha).toFixed(3) + ')';
       ctx.beginPath();
       ctx.arc(sp.x, sp.y, sp.size * 0.9, 0, Math.PI * 2);
@@ -711,7 +804,7 @@
   function pickNextVisibleCard() {
     var candidates = [];
     visibleCards.forEach(function (card) {
-      if (card.isConnected) {
+      if (isNodeConnected(card)) {
         candidates.push(card);
       } else {
         visibleCards.delete(card);
@@ -731,15 +824,17 @@
   var TRANSFER_MIN_MS = 2200;
   var TRANSFER_MAX_MS = 4300;
   var TARGET_FPS_ULTRA = 60;
-  var TARGET_FPS_BALANCED = 30;
+  var TARGET_FPS_BALANCED = 36;
+  var TARGET_FPS_COMPAT = 24;
 
   function nextRandomTransferDelay() {
     return TRANSFER_MIN_MS + Math.random() * (TRANSFER_MAX_MS - TRANSFER_MIN_MS);
   }
 
   function getTargetFps() {
-    if (perfTier === 'lite') return 0;
-    return perfTier === 'ultra' ? TARGET_FPS_ULTRA : TARGET_FPS_BALANCED;
+    if (perfTier === 'ultra') return TARGET_FPS_ULTRA;
+    if (perfTier === 'compat') return TARGET_FPS_COMPAT;
+    return TARGET_FPS_BALANCED;
   }
 
   function transferElectricEffect(now) {
@@ -758,7 +853,7 @@
       return;
     }
 
-    if (slotPrimary.card && slotPrimary.card.isConnected) {
+    if (slotPrimary.card && isNodeConnected(slotPrimary.card)) {
       detachSlot(slotFading);
       var temp = slotFading;
       slotFading = slotPrimary;
@@ -769,50 +864,26 @@
       detachSlot(slotPrimary);
     }
 
-    if (perfTier === 'lite') {
-      if (slotFading.card) {
-        slotFading.card.classList.remove('salim-ch-card-energized');
-        slotFading.card = null;
-      }
-      slotPrimary.card = nextCard;
-      nextCard.classList.add('salim-ch-card-energized');
-    } else {
-      attachSlot(slotPrimary, nextCard);
-    }
-
+    attachSlot(slotPrimary, nextCard);
     nextTransferAt = now + nextRandomTransferDelay();
   }
 
   function stopElectricLoop() {
     if (rafLoopId) {
-      cancelAnimationFrame(rafLoopId);
+      cancelRaf(rafLoopId);
       rafLoopId = 0;
     }
     detachSlot(slotPrimary);
     detachSlot(slotFading);
   }
 
-  var liteIntervalId = 0;
-
-  function stopLiteLoop() {
-    if (liteIntervalId) {
-      clearInterval(liteIntervalId);
-      liteIntervalId = 0;
-    }
-    if (slotPrimary.card) {
-      slotPrimary.card.classList.remove('salim-ch-card-energized');
-      slotPrimary.card = null;
-    }
-  }
-
   function electricTick(now) {
     rafLoopId = 0;
-    if (!stagePresent || document.hidden || perfTier === 'lite') {
+    if (!stagePresent || isDocHidden()) {
       stopElectricLoop();
       return;
     }
 
-    // Never update cards that scrolled outside the viewport
     if (slotFading.card && !visibleCards.has(slotFading.card)) {
       detachSlot(slotFading);
     }
@@ -825,14 +896,13 @@
       }
     }
 
-    // Suspend rAF completely when 0 cards are visible in the viewport
     if (visibleCards.size === 0 && !slotPrimary.card && !slotFading.card) {
       lastFrameTs = 0;
       return;
     }
 
     var targetFps = getTargetFps();
-    var minFrameMs = 1000 / Math.max(30, Math.min(60, targetFps));
+    var minFrameMs = 1000 / Math.max(20, Math.min(60, targetFps));
     if (!lastFrameTs || now - lastFrameTs >= minFrameMs - 0.5) {
       var dtSec = lastFrameTs ? Math.min(0.08, (now - lastFrameTs) / 1000) : minFrameMs / 1000;
       lastFrameTs = now;
@@ -848,33 +918,38 @@
     }
 
     if (visibleCards.size > 0 || slotPrimary.card || slotFading.card) {
-      rafLoopId = requestAnimationFrame(electricTick);
+      rafLoopId = requestRaf(electricTick);
     }
   }
 
   function startElectricEngine() {
-    if (!stagePresent || document.hidden) return;
+    if (!stagePresent || isDocHidden()) return;
 
-    if (perfTier === 'lite') {
-      stopElectricLoop();
-      if (!liteIntervalId && visibleCards.size > 0) {
-        transferElectricEffect(performance.now());
-        liteIntervalId = setInterval(function () {
-          if (stagePresent && !document.hidden && visibleCards.size > 0) {
-            transferElectricEffect(performance.now());
-          }
-        }, 3200);
-      }
-      return;
-    }
-
-    stopLiteLoop();
     if (!rafLoopId && (visibleCards.size > 0 || slotPrimary.card || slotFading.card)) {
       lastFrameTs = 0;
       if (!nextTransferAt) {
-        nextTransferAt = performance.now() + 240;
+        nextTransferAt = nowMs() + 240;
       }
-      rafLoopId = requestAnimationFrame(electricTick);
+      rafLoopId = requestRaf(electricTick);
+    }
+  }
+
+  function probeVisibleCardsByRect() {
+    var grid = document.querySelector('.salim-channels-grid');
+    if (!grid) return;
+    var cards = grid.querySelectorAll('.salim-ch-card[data-salim-ch-id]');
+    var viewH = window.innerHeight || docEl.clientHeight || 800;
+    for (var i = 0; i < cards.length; i++) {
+      var card = cards[i];
+      var rect = card.getBoundingClientRect ? card.getBoundingClientRect() : null;
+      if (!rect || (rect.width > 0 && rect.bottom > 0 && rect.top < viewH)) {
+        visibleCards.add(card);
+      } else {
+        visibleCards.delete(card);
+      }
+    }
+    if (visibleCards.size > 0 && stagePresent && !isDocHidden()) {
+      startElectricEngine();
     }
   }
 
@@ -897,7 +972,7 @@
               visibleCards.delete(entry.target);
             }
           }
-          if (stagePresent && !document.hidden) {
+          if (stagePresent && !isDocHidden()) {
             if (visibleCards.size > 0) {
               startElectricEngine();
             } else if (slotPrimary.card && !visibleCards.has(slotPrimary.card)) {
@@ -909,9 +984,8 @@
       );
     }
 
-    // Prune disconnected cards without wiping currently visible ones
     visibleCards.forEach(function (c) {
-      if (!c.isConnected) {
+      if (!isNodeConnected(c)) {
         visibleCards.delete(c);
       }
     });
@@ -929,6 +1003,11 @@
       }
     }
 
+    // Immediate rect fallback if IO hasn't emitted yet or isn't supported
+    if (visibleCards.size === 0 && cards.length > 0) {
+      probeVisibleCardsByRect();
+    }
+
     if (!gridResizeObserver && typeof ResizeObserver === 'function') {
       gridResizeObserver = new ResizeObserver(function () {
         if (slotPrimary.card) syncCanvasSize(slotPrimary);
@@ -943,9 +1022,10 @@
   }
 
   /* ------------------------------------------------------------------------
-   * 4. LIFECYCLE SYNC (MOUNT / UNMOUNT / VISIBILITY)
+   * 4. LIFECYCLE SYNC (MOUNT / UNMOUNT / TAB CLASS CHANGES / VISIBILITY)
    * ------------------------------------------------------------------------ */
   var syncScheduled = false;
+  var postMountTimer = 0;
 
   function syncDomState() {
     syncScheduled = false;
@@ -960,8 +1040,21 @@
         observedCards = typeof WeakSet === 'function' ? new WeakSet() : null;
         if (cardObserver) cardObserver.disconnect();
         if (gridResizeObserver) gridResizeObserver.disconnect();
+        if (postMountTimer) {
+          clearTimeout(postMountTimer);
+          postMountTimer = 0;
+        }
         stopElectricLoop();
-        stopLiteLoop();
+      } else {
+        // Re-probe slightly after mount on slower CPUs (MT6737)
+        if (postMountTimer) clearTimeout(postMountTimer);
+        postMountTimer = setTimeout(function () {
+          postMountTimer = 0;
+          if (stagePresent) {
+            observeVisibleChannelCards();
+            startElectricEngine();
+          }
+        }, 80);
       }
     }
 
@@ -976,30 +1069,75 @@
   function scheduleSync() {
     if (syncScheduled) return;
     syncScheduled = true;
-    requestAnimationFrame(syncDomState);
+    requestRaf(syncDomState);
   }
 
-  var rootObserver = new MutationObserver(function () {
-    scheduleSync();
-  });
+  function isOwnFxMutation(mut) {
+    var t = mut.target;
+    if (!t) return false;
+    if (t.classList) {
+      if (
+        t.classList.contains('salim-electric-canvas') ||
+        t.classList.contains('salim-nav-traveler') ||
+        t.classList.contains('salim-ch-electric-slot')
+      ) {
+        return true;
+      }
+    }
+    if (mut.type === 'attributes') {
+      if (mut.attributeName === 'style' || mut.attributeName === 'width' || mut.attributeName === 'height') {
+        return true;
+      }
+      if (mut.attributeName === 'class' && t.classList && !t.classList.contains('salim-nav-tab')) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  var rootObserver = typeof MutationObserver === 'function'
+    ? new MutationObserver(function (mutations) {
+        for (var i = 0; i < mutations.length; i++) {
+          if (!isOwnFxMutation(mutations[i])) {
+            scheduleSync();
+            return;
+          }
+        }
+      })
+    : null;
 
   function init() {
     var rootEl = document.getElementById('root') || document.body;
-    if (rootEl) {
-      rootObserver.observe(rootEl, { childList: true, subtree: true });
+    if (rootEl && rootObserver) {
+      rootObserver.observe(rootEl, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['class']
+      });
     }
     syncDomState();
     scheduleNavUpdate(true);
   }
 
   document.addEventListener('visibilitychange', function () {
-    if (document.hidden) {
+    if (isDocHidden()) {
       stopElectricLoop();
-      stopLiteLoop();
     } else if (stagePresent) {
+      observeVisibleChannelCards();
       startElectricEngine();
     }
   });
+
+  if (!cardObserver) {
+    window.addEventListener(
+      'scroll',
+      function () {
+        if (stagePresent && !isDocHidden()) probeVisibleCardsByRect();
+      },
+      { passive: true }
+    );
+  }
 
   if (typeof window !== 'undefined') {
     window.__SalimChannelsFx = {
@@ -1011,10 +1149,33 @@
         return visibleCards.size;
       },
       isRunning: function () {
-        return Boolean(rafLoopId || liteIntervalId);
+        return Boolean(rafLoopId);
       },
       getActiveCardId: function () {
         return slotPrimary.card ? slotPrimary.card.getAttribute('data-salim-ch-id') : null;
+      },
+      getActiveNavTab: function () {
+        return lastNavTabKey;
+      },
+      recomputeTier: function () {
+        applyPerfTier(computePerfTier());
+        return perfTier;
+      },
+      forceSync: syncDomState,
+      getDiagnostics: function () {
+        return {
+          tier: perfTier,
+          targetFps: getTargetFps(),
+          stagePresent: stagePresent,
+          visibleCards: visibleCards.size,
+          running: Boolean(rafLoopId),
+          activeCardId: slotPrimary.card ? slotPrimary.card.getAttribute('data-salim-ch-id') : null,
+          activeNavTab: lastNavTabKey,
+          canvasW: slotPrimary.w,
+          canvasH: slotPrimary.h,
+          dpr: slotPrimary.dpr,
+          deviceProfile: window.__samiDeviceProfile || null
+        };
       }
     };
   }
