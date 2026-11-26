@@ -12,8 +12,8 @@ android {
         applicationId = "com.salim.tradingchallengetracker"
         minSdk = 24
         targetSdk = 34
-        versionCode = 16
-        versionName = "1.3.2"
+        versionCode = 17
+        versionName = "1.3.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -146,4 +146,8 @@ dependencies {
 
     // AndroidX WebKit for offline local HTML/JS/CSS asset loading and PWA support
     implementation("androidx.webkit:webkit:1.11.0")
+}
+
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }

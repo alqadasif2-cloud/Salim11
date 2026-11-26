@@ -271,7 +271,20 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // 14. Default Deny Catch-All
+    // 14. Server-Only Secrets & Internal Push Delivery Queues (Admin/ADC SDK only)
+    match /_server_secrets/{docId} {
+      allow read, write: if false;
+    }
+
+    match /push_outbox/{jobId} {
+      allow read, write: if false;
+    }
+
+    match /push_prefs/{prefId} {
+      allow read, write: if false;
+    }
+
+    // 15. Default Deny Catch-All
     match /{document=**} {
       allow read, write: if false;
     }

@@ -15,6 +15,12 @@ import {
   isFirestoreRestBackoffActive,
   handleFirestoreQuotaOrError,
 } from './db.ts';
+import {
+  getGcpAdminAccessToken,
+  adminFirestoreListCollection,
+  adminFirestoreSetDoc,
+  adminFirestoreDeleteDoc,
+} from './gcpFirestoreAdmin.ts';
 
 export interface WebPushSubscriptionData {
   endpoint: string;
@@ -43,6 +49,8 @@ const VAPID_FILE = path.join(DATA_DIR, 'web_push_vapid.json');
 const OUTBOX_FILE = path.join(DATA_DIR, 'push_outbox.json');
 const PUSH_PREFS_FILE = path.join(DATA_DIR, 'push_prefs.json');
 const NOTIFICATIONS_COLLECTION = 'community_notifications';
+const PUSH_PREFS_COLLECTION = 'push_prefs';
+const PUSH_OUTBOX_COLLECTION = 'push_outbox';
 
 export interface NotificationPrefs {
   userId: number;
@@ -84,6 +92,8 @@ let outboxLoaded = false;
 let outboxTimer: NodeJS.Timeout | null = null;
 let outboxRunning = false;
 let lastFirestoreSyncAt = 0;
+let lastPrefsFirestoreSyncAt = 0;
+let lastOutboxFirestoreSyncAt = 0;
 const FIRESTORE_SYNC_TTL_MS = 15 * 1000;
 
 let cachedAccessToken: { token: string; expiresAt: number } | null = null;
@@ -92,6 +102,12 @@ function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
+}
+
+function makeFirestoreSafeId(raw: string): string {
+  const clean = String(raw || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  if (clean.length > 0 && clean.length <= 120) return clean;
+  return `job_${crypto.createHash('sha1').update(String(raw)).digest('hex')}`;
 }
 
 function loadPrefsFromDisk() {
@@ -130,6 +146,40 @@ function savePrefsToDisk() {
   } catch {}
 }
 
+export async function syncPrefsFromFirestore(force = false): Promise<void> {
+  loadPrefsFromDisk();
+  if (isFirestoreRestBackoffActive()) return;
+  if (!force && Date.now() - lastPrefsFirestoreSyncAt < 30_000) return;
+  lastPrefsFirestoreSyncAt = Date.now();
+  try {
+    const docs = await adminFirestoreListCollection(PUSH_PREFS_COLLECTION, 500);
+    let changed = false;
+    for (const doc of docs) {
+      const d = doc.data;
+      if (!d) continue;
+      const uid = Number(d.userId || 0);
+      if (!uid || uid <= 0) continue;
+      const updatedAt = Number(d.updatedAt || 0);
+      const existing = pushPrefsMap.get(uid);
+      if (!existing || updatedAt >= existing.updatedAt) {
+        pushPrefsMap.set(uid, {
+          userId: uid,
+          mutedAll: Boolean(d.mutedAll),
+          mutedChannels: Array.isArray(d.mutedChannels) ? d.mutedChannels.map(String) : [],
+          mutedPartners: Array.isArray(d.mutedPartners)
+            ? d.mutedPartners.map(Number).filter((n: number) => Number.isFinite(n) && n > 0)
+            : [],
+          updatedAt,
+        });
+        changed = true;
+      }
+    }
+    if (changed) savePrefsToDisk();
+  } catch (err) {
+    handleFirestoreQuotaOrError(err, 'syncPrefsFromFirestore', PUSH_PREFS_COLLECTION);
+  }
+}
+
 export function getUserNotificationPrefs(userId: number): NotificationPrefs {
   loadPrefsFromDisk();
   const uid = Number(userId || 0);
@@ -142,6 +192,11 @@ export function getUserNotificationPrefs(userId: number): NotificationPrefs {
       updatedAt: 0,
     }
   );
+}
+
+export async function getUserNotificationPrefsAsync(userId: number): Promise<NotificationPrefs> {
+  await syncPrefsFromFirestore();
+  return getUserNotificationPrefs(userId);
 }
 
 export function saveUserNotificationPrefs(
@@ -164,6 +219,27 @@ export function saveUserNotificationPrefs(
   };
   pushPrefsMap.set(uid, next);
   savePrefsToDisk();
+  if (!isFirestoreRestBackoffActive()) {
+    adminFirestoreSetDoc(PUSH_PREFS_COLLECTION, `user_${uid}`, next).catch((err: any) =>
+      handleFirestoreQuotaOrError(err, 'saveUserNotificationPrefs', PUSH_PREFS_COLLECTION)
+    );
+  }
+  return next;
+}
+
+export async function saveUserNotificationPrefsAsync(
+  userId: number,
+  patch: Partial<Omit<NotificationPrefs, 'userId'>>
+): Promise<NotificationPrefs> {
+  await syncPrefsFromFirestore();
+  const next = saveUserNotificationPrefs(userId, patch);
+  if (!isFirestoreRestBackoffActive()) {
+    try {
+      await adminFirestoreSetDoc(PUSH_PREFS_COLLECTION, `user_${next.userId}`, next);
+    } catch (err) {
+      handleFirestoreQuotaOrError(err, 'saveUserNotificationPrefsAsync', PUSH_PREFS_COLLECTION);
+    }
+  }
   return next;
 }
 
@@ -225,6 +301,52 @@ function computeRetryDelayMs(attempt: number): number {
   return schedule[Math.min(Math.max(0, attempt - 1), schedule.length - 1)];
 }
 
+function persistOutboxJobToFirestore(job: PushOutboxJob) {
+  if (isFirestoreRestBackoffActive()) return;
+  const docId = makeFirestoreSafeId(job.jobId);
+  adminFirestoreSetDoc(PUSH_OUTBOX_COLLECTION, docId, { ...job, firestoreDocId: docId }).catch((err: any) =>
+    handleFirestoreQuotaOrError(err, 'persistOutboxJob', PUSH_OUTBOX_COLLECTION)
+  );
+}
+
+function deleteOutboxJobFromFirestore(jobId: string) {
+  if (isFirestoreRestBackoffActive()) return;
+  const docId = makeFirestoreSafeId(jobId);
+  adminFirestoreDeleteDoc(PUSH_OUTBOX_COLLECTION, docId).catch(() => {});
+}
+
+async function syncOutboxFromFirestore(force = false): Promise<void> {
+  loadOutboxFromDisk();
+  if (isFirestoreRestBackoffActive()) return;
+  if (!force && Date.now() - lastOutboxFirestoreSyncAt < 30_000) return;
+  lastOutboxFirestoreSyncAt = Date.now();
+  try {
+    const docs = await adminFirestoreListCollection(PUSH_OUTBOX_COLLECTION, 500);
+    const now = Date.now();
+    let changed = false;
+    for (const doc of docs) {
+      const item = doc.data;
+      if (!item || !item.jobId) continue;
+      if (now - Number(item.createdAt || now) >= 24 * 60 * 60 * 1000) {
+        deleteOutboxJobFromFirestore(String(item.jobId));
+        continue;
+      }
+      const key = String(item.jobId);
+      const existing = pushOutboxQueue.get(key);
+      if (!existing || Number(item.attempts || 0) >= existing.attempts) {
+        pushOutboxQueue.set(key, item as PushOutboxJob);
+        changed = true;
+      }
+    }
+    if (changed) {
+      saveOutboxToDisk();
+      scheduleOutboxProcessor();
+    }
+  } catch (err) {
+    handleFirestoreQuotaOrError(err, 'syncOutboxFromFirestore', PUSH_OUTBOX_COLLECTION);
+  }
+}
+
 function enqueuePushOutboxJob(params: {
   recordId: string;
   userId: number;
@@ -270,6 +392,7 @@ function enqueuePushOutboxJob(params: {
   };
   pushOutboxQueue.set(dedupeKey, job);
   saveOutboxToDisk();
+  persistOutboxJobToFirestore(job);
   scheduleOutboxProcessor();
 }
 
@@ -311,11 +434,13 @@ async function processPushOutbox(): Promise<void> {
       if (job.nextAttemptAt > now) continue;
       if (now - job.createdAt > 24 * 60 * 60 * 1000) {
         pushOutboxQueue.delete(jobId);
+        deleteOutboxJobFromFirestore(jobId);
         changed = true;
         continue;
       }
       if (job.data.messageId && deliveredMessageTargets.has(job.dedupeKey)) {
         pushOutboxQueue.delete(jobId);
+        deleteOutboxJobFromFirestore(jobId);
         changed = true;
         continue;
       }
@@ -338,18 +463,22 @@ async function processPushOutbox(): Promise<void> {
             deliveredMessageTargets.set(job.dedupeKey, Date.now());
           }
           pushOutboxQueue.delete(jobId);
+          deleteOutboxJobFromFirestore(jobId);
           changed = true;
         } catch (err: any) {
           const code = Number(err?.statusCode || 0);
           if (code === 404 || code === 410) {
             await removeDeviceRecord(job.recordId);
             pushOutboxQueue.delete(jobId);
+            deleteOutboxJobFromFirestore(jobId);
           } else if (job.attempts >= job.maxAttempts) {
             pushOutboxQueue.delete(jobId);
+            deleteOutboxJobFromFirestore(jobId);
           } else {
             job.attempts += 1;
             job.nextAttemptAt = Date.now() + computeRetryDelayMs(job.attempts);
             job.lastError = String(err?.message || code);
+            persistOutboxJobToFirestore(job);
           }
           changed = true;
         }
@@ -364,22 +493,27 @@ async function processPushOutbox(): Promise<void> {
             deliveredMessageTargets.set(job.dedupeKey, Date.now());
           }
           pushOutboxQueue.delete(jobId);
+          deleteOutboxJobFromFirestore(jobId);
           changed = true;
         } else if (res.unreg) {
           await removeDeviceRecord(job.recordId);
           pushOutboxQueue.delete(jobId);
+          deleteOutboxJobFromFirestore(jobId);
           changed = true;
         } else if (job.attempts >= job.maxAttempts) {
           pushOutboxQueue.delete(jobId);
+          deleteOutboxJobFromFirestore(jobId);
           changed = true;
         } else {
           job.attempts += 1;
           job.nextAttemptAt = Date.now() + computeRetryDelayMs(job.attempts);
           job.lastError = res.error || 'fcm_retry';
+          persistOutboxJobToFirestore(job);
           changed = true;
         }
       } else {
         pushOutboxQueue.delete(jobId);
+        deleteOutboxJobFromFirestore(jobId);
         changed = true;
       }
     }
@@ -393,14 +527,21 @@ async function processPushOutbox(): Promise<void> {
   }
 }
 
-export function getPushSystemDiagnostics() {
+export async function getPushSystemDiagnostics() {
   loadSubscriptionsFromDisk();
-  loadOutboxFromDisk();
+  await syncSubscriptionsFromFirestore();
+  await syncOutboxFromFirestore();
+  const devices = Array.from(deviceTokens.values());
+  const androidCount = devices.filter((d) => d.platform === 'android').length;
+  const webCount = devices.filter((d) => d.platform !== 'android').length;
   return {
     registeredDevices: deviceTokens.size,
+    androidDevices: androidCount,
+    webDevices: webCount,
     pendingOutboxJobs: pushOutboxQueue.size,
     recentDeliveredCount: deliveredMessageTargets.size,
     vapidReady: Boolean(loadVapidKeys().publicKey),
+    firestoreOutboxBacked: Boolean(firestoreClient),
   };
 }
 
@@ -685,32 +826,7 @@ export async function unregisterDeviceToken(
 }
 
 async function getGcpAccessToken(): Promise<string | null> {
-  if (cachedAccessToken && Date.now() < cachedAccessToken.expiresAt - 60_000) {
-    return cachedAccessToken.token;
-  }
-
-  // 1. Try Cloud Run / GCE Metadata Server (Application Default Credentials on Cloud Run)
-  try {
-    const res = await fetch(
-      'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',
-      {
-        headers: { 'Metadata-Flavor': 'Google' },
-        signal: AbortSignal.timeout(1500),
-      }
-    );
-    if (res.ok) {
-      const data: any = await res.json();
-      if (data?.access_token) {
-        cachedAccessToken = {
-          token: String(data.access_token),
-          expiresAt: Date.now() + Number(data.expires_in || 3600) * 1000,
-        };
-        return cachedAccessToken.token;
-      }
-    }
-  } catch {}
-
-  return null;
+  return getGcpAdminAccessToken();
 }
 
 function resolveAndroidChannelId(data: Record<string, string>): string {
@@ -776,6 +892,7 @@ async function sendAndroidFcmV1(
 
     if (res.ok) return { ok: true };
     const text = await res.text().catch(() => '');
+    console.warn(`[Salim FCM v1] Delivery failed status=${res.status}: ${text.slice(0, 180)}`);
     if (
       res.status === 404 ||
       res.status === 410 ||
@@ -788,6 +905,7 @@ async function sendAndroidFcmV1(
     const isTransient = res.status >= 500 || res.status === 429 || res.status === 408;
     return { ok: false, transient: isTransient, error: `fcm_${res.status}` };
   } catch (err: any) {
+    console.warn('[Salim FCM v1] Network error:', err?.message || err);
     return { ok: false, transient: true, error: String(err?.message || 'fcm_network_error') };
   }
 }
@@ -805,6 +923,7 @@ export async function sendNotificationToUsers(
   loadOutboxFromDisk();
   pruneDeliveredLog();
   await syncSubscriptionsFromFirestore();
+  await syncOutboxFromFirestore();
 
   const targetSet = new Set(
     (targetUserIds || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
@@ -1019,6 +1138,9 @@ export async function dispatchAuthorizedChatPush(params: {
       if (rNum > 0 && rNum !== senderNum) recipients = [rNum];
     }
   }
+
+  // Hydrate persistent mute prefs from Firestore before filtering
+  await syncPrefsFromFirestore();
 
   // Enforce per-user mute preferences before dispatching
   recipients = recipients.filter(

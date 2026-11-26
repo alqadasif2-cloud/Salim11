@@ -181,6 +181,33 @@
         "timestamp": { "type": "number" }
       },
       "required": ["id", "ownerId", "ownerUsername", "actionType", "status", "timestamp"]
+    },
+    "PushOutboxJob": {
+      "title": "PushOutboxJob",
+      "description": "Server-side persistent retry queue for failed or deferred FCM/WebPush deliveries.",
+      "type": "object",
+      "properties": {
+        "jobId": { "type": "string" },
+        "userId": { "type": "number" },
+        "platform": { "type": "string" },
+        "attempts": { "type": "number" },
+        "nextAttemptAt": { "type": "number" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["jobId", "userId", "platform", "createdAt"]
+    },
+    "PushPrefs": {
+      "title": "PushPrefs",
+      "description": "Per-user mute and push notification channel preferences.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "number" },
+        "mutedAll": { "type": "boolean" },
+        "mutedChannels": { "type": "array" },
+        "mutedPartners": { "type": "array" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["userId", "updatedAt"]
     }
   },
   "firestore": {
@@ -235,6 +262,14 @@
     "/ai_assistant_audit_logs/{logId}": {
       "schema": { "$ref": "#/entities/AiAssistantAuditLog" },
       "description": "Immutable audit log of AI Assistant commands and operations."
+    },
+    "/push_outbox/{jobId}": {
+      "schema": { "$ref": "#/entities/PushOutboxJob" },
+      "description": "Server-side persistent push notification retry outbox."
+    },
+    "/push_prefs/{prefId}": {
+      "schema": { "$ref": "#/entities/PushPrefs" },
+      "description": "Server-side persistent user mute and notification preferences."
     }
   }
 }

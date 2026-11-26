@@ -201,6 +201,14 @@ function formatAiNetworkError(err: any, endpointUrl: string): string {
   const rawMsg = String(err?.message || '').trim();
   const lower = rawMsg.toLowerCase();
 
+  const targetHost = (() => {
+    try {
+      return new URL(endpointUrl, typeof window !== 'undefined' ? window.location.origin : DEFAULT_AI_SERVER_BASE).host;
+    } catch {
+      return 'الخادم البعيد';
+    }
+  })();
+
   if (name === 'AbortError' || lower.includes('aborted') || lower.includes('timeout')) {
     return 'انتهت مهلة الاتصال بخادم المساعد الذكي قبل وصول الرد. قد يكون الاتصال بطيئاً أو الطلب طويلاً — اضغط «إعادة المحاولة».';
   }
@@ -213,14 +221,7 @@ function formatAiNetworkError(err: any, endpointUrl: string): string {
     lower.includes('err_connection') ||
     lower.includes('err_name_not_resolved')
   ) {
-    const targetHost = (() => {
-      try {
-        return new URL(endpointUrl, typeof window !== 'undefined' ? window.location.origin : DEFAULT_AI_SERVER_BASE).host;
-      } catch {
-        return 'الخادم البعيد';
-      }
-    })();
-    return `تعذر الوصول إلى خادم المساعد الذكي (${targetHost}). تحقق من اتصال الإنترنت أو استقرار الشبكة أو توقف الخادم مؤقتاً، ثم أعد المحاولة.`;
+    return `تعذر الوصول إلى خادم المساعد الذكي (${targetHost}). قد يكون الخادم غير منشور على هذا العنوان أو الشبكة تمنع الوصول — اضغط «فحص الاتصال» للتحقق.`;
   }
   if (rawMsg) {
     return rawMsg;
@@ -400,8 +401,25 @@ export function SamiAiAssistantPanel({ currentUser, onNavigate, onToast }: Props
             data = JSON.parse(rawText);
           } catch {
             if (rawText.trim().startsWith('<') || contentType.includes('text/html')) {
+              const hostName = (() => {
+                try {
+                  return new URL(targetUrl, window.location.origin).host;
+                } catch {
+                  return 'الخادم البعيد';
+                }
+              })();
+              if (res.status === 404) {
+                throw new Error(
+                  `عنوان خادم المساعد الذكي (${hostName}) أعاد خطأ 404 (الخدمة غير منشورة أو رابط الإنتاج غير مفعّل بعد). يجب مشاركة/نشر الخادم أولاً ثم إعادة المحاولة.`
+                );
+              }
+              if (res.status === 401 || res.status === 403) {
+                throw new Error(
+                  `خادم المساعد الذكي (${hostName}) يرفض الوصول الخارجي (رمز ${res.status}). تأكد من أن رابط الخادم عام وليس رابط معاينة محمياً.`
+                );
+              }
               throw new Error(
-                `الخادم أعاد استجابة غير متوقعة (صفحة HTML بدلاً من JSON، رمز ${res.status}). تأكد من أن عنوان الخادم المعتمد متاح.`
+                `الخادم (${hostName}) أعاد صفحة HTML بدلاً من JSON (رمز ${res.status}). تأكد من أن عنوان الخادم المعتمد متاح.`
               );
             }
           }
@@ -481,11 +499,18 @@ export function SamiAiAssistantPanel({ currentUser, onNavigate, onToast }: Props
     try {
       const res = await fetch(targetUrl, { method: 'GET', cache: 'no-store', signal: ctrl.signal });
       clearTimeout(timer);
-      const data = await res.json().catch(() => ({}));
+      const ctype = String(res.headers.get('content-type') || '').toLowerCase();
+      const rawText = await res.text().catch(() => '');
+      let data: any = {};
+      try {
+        if (rawText) data = JSON.parse(rawText);
+      } catch {}
       if (res.ok && data?.ok) {
         setErrorMsg(null);
         onToast?.('الاتصال بالخادم سليم ونشط — جارٍ تحديث المساعد الذكي...');
         await loadState(false);
+      } else if (res.status === 404 && (ctype.includes('text/html') || rawText.trim().startsWith('<'))) {
+        setErrorMsg(`عنوان الخادم البعيد غير منشور بعد (404 HTML على ${targetUrl}). يرجى نشر/مشاركة الخادم السحابي في Google AI Studio.`);
       } else {
         setErrorMsg(`الخادم استجاب برمز (${res.status}) أثناء فحص الاتصال (${targetUrl}).`);
       }
@@ -546,6 +571,9 @@ export function SamiAiAssistantPanel({ currentUser, onNavigate, onToast }: Props
       }
       saveStoredJwt(data.token);
       if (currentUser) currentUser.token = data.token;
+      try {
+        (window as any).SamiBridge?.syncAuthToken?.(data.token);
+      } catch {}
       setReauthPassword('');
       setNeedsReauth(false);
       onToast?.('تم توثيق جلسة المالك Salim بنجاح.');

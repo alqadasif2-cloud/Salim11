@@ -97,8 +97,8 @@ if (typeof window !== 'undefined' && window.Storage) {
 
 export const SAMI_EXPECTED_APP_ID = 'com.salim.tradingchallengetracker';
 export const SAMI_LEGACY_APP_ID = 'com.sami.tradingchallengetracker';
-export const SAMI_FALLBACK_VERSION_CODE = 16;
-export const SAMI_FALLBACK_VERSION_NAME = '1.3.2';
+export const SAMI_FALLBACK_VERSION_CODE = 17;
+export const SAMI_FALLBACK_VERSION_NAME = '1.3.3';
 export const DEFAULT_SAMI_SERVER_URL = 'https://ais-pre-wrwn7qrad4ng4e3ejalosp-497473975821.europe-west2.run.app';
 
 export const SHARED_FIRESTORE_LATEST_DOC_URL =

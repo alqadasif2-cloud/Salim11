@@ -49,6 +49,7 @@ import {
 import {
   generateToken,
   verifyToken,
+  ensureJwtSecretReady,
   authenticateToken,
   requireAuth,
   requireRole,
@@ -61,7 +62,9 @@ import {
   dispatchAuthorizedChatPush,
   getWebPushPublicKey,
   getUserNotificationPrefs,
+  getUserNotificationPrefsAsync,
   saveUserNotificationPrefs,
+  saveUserNotificationPrefsAsync,
   getPushSystemDiagnostics,
 } from './fcm.ts';
 import {
@@ -96,7 +99,9 @@ import {
 export const apiRouter = Router();
 
 // Middleware to parse session headers or queries
-apiRouter.use((req: Request, _res: Response, next: NextFunction) => {
+apiRouter.use(async (req: Request, _res: Response, next: NextFunction) => {
+  await ensureJwtSecretReady();
+
   // 1. Try Bearer token (cryptographically signed HMAC-SHA256 JWT)
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -165,8 +170,8 @@ apiRouter.get('/health', (_req: Request, res: Response) => {
     ok: true,
     status: 'online',
     service: 'salim-api',
-    version: '1.3.2',
-    versionCode: 16,
+    version: '1.3.3',
+    versionCode: 17,
     timestamp: Date.now(),
   });
 });
@@ -1023,25 +1028,27 @@ apiRouter.post('/fcm/dispatch', async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.get('/fcm/prefs', (req: Request, res: Response) => {
+apiRouter.get('/fcm/prefs', async (req: Request, res: Response) => {
   const user = getEffectiveUser(req);
   if (!user || user.isGuest || user.id >= 9_000_000) {
     return res.status(401).json({ error: 'يرجى تسجيل الدخول' });
   }
-  return res.json({ success: true, prefs: getUserNotificationPrefs(user.id) });
-});
-
-apiRouter.post('/fcm/prefs', (req: Request, res: Response) => {
-  const user = getEffectiveUser(req);
-  if (!user || user.isGuest || user.id >= 9_000_000) {
-    return res.status(401).json({ error: 'يرجى تسجيل الدخول' });
-  }
-  const prefs = saveUserNotificationPrefs(user.id, req.body || {});
+  const prefs = await getUserNotificationPrefsAsync(user.id);
   return res.json({ success: true, prefs });
 });
 
-apiRouter.get('/fcm/status', (_req: Request, res: Response) => {
-  return res.json({ success: true, ...getPushSystemDiagnostics() });
+apiRouter.post('/fcm/prefs', async (req: Request, res: Response) => {
+  const user = getEffectiveUser(req);
+  if (!user || user.isGuest || user.id >= 9_000_000) {
+    return res.status(401).json({ error: 'يرجى تسجيل الدخول' });
+  }
+  const prefs = await saveUserNotificationPrefsAsync(user.id, req.body || {});
+  return res.json({ success: true, prefs });
+});
+
+apiRouter.get('/fcm/status', async (_req: Request, res: Response) => {
+  const diag = await getPushSystemDiagnostics();
+  return res.json({ success: true, ...diag });
 });
 
 // ============================================================================

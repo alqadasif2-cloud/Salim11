@@ -330,7 +330,7 @@ nav,
    ========================================================================== */
 /* Ensures the background image is sufficiently darkened so text is always 100% readable */
 [aria-hidden="true"] > img[src*="background_image"] + div {
-  background-color: rgba(3, 6, 14, 0.78) !important;
+  background-color: rgba(5, 8, 17, 0.54) !important;
 }
 
 /* ==========================================================================
@@ -1596,6 +1596,33 @@ nav.sticky.bottom-0.salim-nav-dock,
   to { opacity: 1; -webkit-transform: translate3d(0, 0, 0); transform: translate3d(0, 0, 0); }
 }
 
+@-webkit-keyframes samiFadeOnly {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes samiFadeOnly {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@-webkit-keyframes samiSlideFromTop {
+  from { opacity: 0; -webkit-transform: translate3d(0, -14px, 0); transform: translate3d(0, -14px, 0); }
+  to { opacity: 1; -webkit-transform: translate3d(0, 0, 0); transform: translate3d(0, 0, 0); }
+}
+@keyframes samiSlideFromTop {
+  from { opacity: 0; -webkit-transform: translate3d(0, -14px, 0); transform: translate3d(0, -14px, 0); }
+  to { opacity: 1; -webkit-transform: translate3d(0, 0, 0); transform: translate3d(0, 0, 0); }
+}
+
+@-webkit-keyframes samiSlideFromBottom {
+  from { opacity: 0; -webkit-transform: translate3d(0, 16px, 0); transform: translate3d(0, 16px, 0); }
+  to { opacity: 1; -webkit-transform: translate3d(0, 0, 0); transform: translate3d(0, 0, 0); }
+}
+@keyframes samiSlideFromBottom {
+  from { opacity: 0; -webkit-transform: translate3d(0, 16px, 0); transform: translate3d(0, 16px, 0); }
+  to { opacity: 1; -webkit-transform: translate3d(0, 0, 0); transform: translate3d(0, 0, 0); }
+}
+
 @-webkit-keyframes samiZoomIn {
   from { opacity: 0; -webkit-transform: scale3d(0.95, 0.95, 1); transform: scale3d(0.95, 0.95, 1); }
   to { opacity: 1; -webkit-transform: scale3d(1, 1, 1); transform: scale3d(1, 1, 1); }
@@ -1638,11 +1665,32 @@ nav.sticky.bottom-0.salim-nav-dock,
   will-change: opacity, transform;
 }
 
+.animate-in.fade-in {
+  -webkit-animation: samiFadeOnly 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: samiFadeOnly 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-in.slide-in-from-top {
+  -webkit-animation: samiSlideFromTop 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: samiSlideFromTop 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-in.slide-in-from-bottom,
+.animate-in.slide-in-from-bottom-4 {
+  -webkit-animation: samiSlideFromBottom 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: samiSlideFromBottom 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 .animate-in.zoom-in,
 .animate-in.zoom-in-95 {
   -webkit-animation: samiZoomIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
   animation: samiZoomIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+.animate-in.duration-150 { -webkit-animation-duration: 150ms; animation-duration: 150ms; }
+.animate-in.duration-200 { -webkit-animation-duration: 200ms; animation-duration: 200ms; }
+.animate-in.duration-300 { -webkit-animation-duration: 300ms; animation-duration: 300ms; }
+.animate-in.duration-500 { -webkit-animation-duration: 500ms; animation-duration: 500ms; }
 
 .animate-spin {
   -webkit-animation: samiSpinCompat 1s linear infinite !important;
@@ -1659,21 +1707,66 @@ nav.sticky.bottom-0.salim-nav-dock,
   animation: samiBounceCompat 1s infinite !important;
 }
 
-/* Guarantee GPU compositing for interactive cards, nav tabs & buttons on WebView */
+/* Instant tactile feedback for touchscreens (Android WebView) */
+button,
+[role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Guarantee GPU compositing for interactive cards, nav tabs & animated FX layers */
 .salim-nav-dock,
 .salim-nav-traveler,
 .salim-nav-icon-wrap,
 .salim-nav-orbit,
+.salim-nav-halo,
 .salim-ch-card,
+.salim-ch-search-sheen,
+.salim-ch-search-wave,
 .salim-pkg-cta,
 .salim-pm-spotlight,
-.salim-gold-trail {
+.salim-gold-dust-layer,
+.salim-gold-trail,
+.animate-in {
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 
 /* Fallback for older Android WebViews without CSS `translate:`/`scale:` individual properties */
+@supports not (translate: 0px) {
+  .-translate-x-1\/2 {
+    -webkit-transform: translate3d(-50%, 0, 0) !important;
+    transform: translate3d(-50%, 0, 0) !important;
+  }
+  .-translate-y-1\/2 {
+    -webkit-transform: translate3d(0, -50%, 0) !important;
+    transform: translate3d(0, -50%, 0) !important;
+  }
+  .translate-x-0,
+  .translate-y-0 {
+    -webkit-transform: translate3d(0, 0, 0) !important;
+    transform: translate3d(0, 0, 0) !important;
+  }
+  .active\:scale-95:active {
+    -webkit-transform: scale3d(0.95, 0.95, 1) !important;
+    transform: scale3d(0.95, 0.95, 1) !important;
+  }
+  .active\:scale-\[0\.98\]:active {
+    -webkit-transform: scale3d(0.98, 0.98, 1) !important;
+    transform: scale3d(0.98, 0.98, 1) !important;
+  }
+  .scale-105 {
+    -webkit-transform: scale3d(1.05, 1.05, 1) !important;
+    transform: scale3d(1.05, 1.05, 1) !important;
+  }
+}
+
+.sami-no-css-translate .-translate-x-1\/2 {
+  -webkit-transform: translate3d(-50%, 0, 0) !important;
+  transform: translate3d(-50%, 0, 0) !important;
+}
 .sami-no-css-translate .active\:scale-95:active {
   -webkit-transform: scale3d(0.95, 0.95, 1) !important;
   transform: scale3d(0.95, 0.95, 1) !important;
@@ -1698,6 +1791,7 @@ nav.sticky.bottom-0.salim-nav-dock,
   -webkit-transform: translate3d(0, -50%, 0) !important;
   transform: translate3d(0, -50%, 0) !important;
 }
+.sami-no-css-translate .translate-x-0,
 .sami-no-css-translate .translate-y-0 {
   -webkit-transform: translate3d(0, 0, 0) !important;
   transform: translate3d(0, 0, 0) !important;

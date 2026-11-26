@@ -31,10 +31,14 @@
     }
 
     var supportsTranslate = false;
+    var supportsScale = false;
     var supportsMask = false;
     if (window.CSS && typeof CSS.supports === 'function') {
       try {
         supportsTranslate = CSS.supports('translate', '0px 0px');
+      } catch (e) {}
+      try {
+        supportsScale = CSS.supports('scale', '1');
       } catch (e) {}
       try {
         supportsMask = CSS.supports('mask-image', 'linear-gradient(#000, #000)') || CSS.supports('-webkit-mask-image', 'linear-gradient(#000, #000)');
@@ -54,7 +58,7 @@
     if (!supportsOklch) {
       docEl.classList.add('sami-no-oklch');
     }
-    if (!supportsTranslate) {
+    if (!supportsTranslate || !supportsScale) {
       docEl.classList.add('sami-no-css-translate');
     }
     if (!supportsMask) {

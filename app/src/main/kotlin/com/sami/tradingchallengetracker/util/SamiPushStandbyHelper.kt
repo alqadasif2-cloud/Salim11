@@ -221,6 +221,12 @@ object SamiPushStandbyHelper {
                 } else {
                     val resId = context.resources.getIdentifier("google_app_id", "string", context.packageName)
                     val appId = if (resId != 0) context.getString(resId) else FIREBASE_FALLBACK_APP_ID
+                    if (resId == 0) {
+                        Log.e(
+                            "SamiPushStandby",
+                            "Missing Android google-services.json (google_app_id resource absent). FCM registration requires an Android App ID (1:${FIREBASE_SENDER_ID}:android:...) registered for ${context.packageName}."
+                        )
+                    }
                     val opts = FirebaseOptions.Builder()
                         .setProjectId(FIREBASE_PROJECT_ID)
                         .setStorageBucket(FIREBASE_STORAGE_BUCKET)
@@ -243,17 +249,23 @@ object SamiPushStandbyHelper {
         if (!ensureFirebaseInitialized(context.applicationContext)) return
         try {
             FirebaseMessaging.getInstance().isAutoInitEnabled = true
-            FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
-                if (!token.isNullOrBlank()) {
-                    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                        .edit()
-                        .putString("fcm_token", token)
-                        .apply()
-                    syncTokenToServerInBackground(context.applicationContext, token)
-                    onTokenReady?.invoke(token)
+            FirebaseMessaging.getInstance().token
+                .addOnSuccessListener { token ->
+                    if (!token.isNullOrBlank()) {
+                        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                            .edit()
+                            .putString("fcm_token", token)
+                            .apply()
+                        syncTokenToServerInBackground(context.applicationContext, token)
+                        onTokenReady?.invoke(token)
+                    }
                 }
-            }
-        } catch (_: Throwable) {}
+                .addOnFailureListener { err ->
+                    Log.e("SamiPushStandby", "FCM token fetch failed: ${err.message}", err)
+                }
+        } catch (t: Throwable) {
+            Log.e("SamiPushStandby", "FCM standby setup error: ${t.message}", t)
+        }
     }
 
     fun syncTokenToServerInBackground(context: Context, rawToken: String?) {

@@ -5780,8 +5780,8 @@ if (typeof window !== "undefined" && window.Storage) {
   }
 }
 var SAMI_EXPECTED_APP_ID = "com.sami.tradingchallengetracker";
-var SAMI_FALLBACK_VERSION_CODE = 16;
-var SAMI_FALLBACK_VERSION_NAME2 = "1.3.2";
+var SAMI_FALLBACK_VERSION_CODE = 17;
+var SAMI_FALLBACK_VERSION_NAME2 = "1.3.3";
 var DEFAULT_SAMI_SERVER_URL = "https://ais-pre-wrwn7qrad4ng4e3ejalosp-497473975821.europe-west2.run.app";
 var SHARED_FIRESTORE_LATEST_DOC_URL2 = "https://firestore.googleapis.com/v1/projects/gen-lang-client-0469226875/databases/ai-studio-salimtradingchal-50c5f03a-26a5-4ffd-ab5f-fd003f2fd93b/documents/app_updates/latest";
 function isAndroidLocalAssetOrigin() {

@@ -145,7 +145,7 @@ class MainActivity : ComponentActivity() {
         webView = WebView(this).apply {
             setBackgroundColor(Color.parseColor("#050811"))
             overScrollMode = WebView.OVER_SCROLL_NEVER
-            setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            setLayerType(View.LAYER_TYPE_NONE, null)
 
             settings.apply {
                 javaScriptEnabled = true
@@ -430,13 +430,13 @@ class MainActivity : ComponentActivity() {
                 }
                 JSONObject().apply {
                     put("versionCode", vCode)
-                    put("versionName", pkgInfo.versionName ?: "1.3.2")
+                    put("versionName", pkgInfo.versionName ?: "1.3.3")
                     put("applicationId", packageName)
                     put("isAndroidNative", true)
                     put("sdkInt", Build.VERSION.SDK_INT)
                 }.toString()
             } catch (_: Throwable) {
-                """{"versionCode":16,"versionName":"1.3.2","applicationId":"$packageName","isAndroidNative":true}"""
+                """{"versionCode":17,"versionName":"1.3.3","applicationId":"$packageName","isAndroidNative":true}"""
             }
         }
 
@@ -688,7 +688,8 @@ class MainActivity : ComponentActivity() {
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
                 val bodyText = body ?: "رسالة جديدة"
-                val notif = NotificationCompat.Builder(this@MainActivity, SamiPushStandbyHelper.CHANNEL_ID)
+                val notifChannel = SamiPushStandbyHelper.resolveChannelId(resolvedChatType, "")
+                val notif = NotificationCompat.Builder(this@MainActivity, notifChannel)
                     .setSmallIcon(applicationInfo.icon)
                     .setContentTitle(title ?: senderName ?: "Salim")
                     .setContentText(bodyText)
